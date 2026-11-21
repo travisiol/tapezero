@@ -35,8 +35,9 @@ export function Chart(p: Props) {
   const cv = useRef<HTMLCanvasElement>(null);
   const L = useRef<ChartLayout | null>(null);
   const size = useRef({ w: 0, h: 0, dpr: 1 });
-  const drag = useRef<{ mode: 'seek' | 'select' | 'pan' | 'pending'; x0: number; t0: number; v?: [number, number] } | null>(null);
+  const drag = useRef<{ mode: 'seek' | 'select' | 'pan' | 'pending' | 'pending-select' | 'yscale'; x0: number; y0: number; t0: number; v?: [number, number]; y?: [number, number] } | null>(null);
   const hover = useRef<number | null>(null);
+  const hoverY = useRef<number | null>(null);
   const ghosts = useRef<{ t: number; born: number }[]>([]);
   const prevPh = useRef<number | null>(null);
   const drawFlag = useRef(false);
@@ -65,7 +66,7 @@ export function Chart(p: Props) {
     const LIFE = 300;
     ghosts.current = ghosts.current.filter((g) => now - g.born < LIFE);
     const gs = pr.staticGhosts ?? ghosts.current.map((g) => ({ t: g.t, a: Math.max(0, Math.min(1, 1 - (now - g.born) / LIFE)) }));
-    const opts: ChartOpts = { t0: pr.t0, gaps: pr.gaps, isLive: pr.isLive, usdPerSol: pr.usdPerSol, supply: pr.supply, dimIds: pr.dimIds, ghosts: gs, compact: pr.compact, hoverX: hover.current };
+    const opts: ChartOpts = { t0: pr.t0, gaps: pr.gaps, isLive: pr.isLive, usdPerSol: pr.usdPerSol, supply: pr.supply, dimIds: pr.dimIds, ghosts: gs, compact: pr.compact, hoverX: hover.current, hoverY: hoverY.current };
     const lay = layoutChart(pr.ctrl.series, st, w, h, opts);
     L.current = lay;
     drawChart(ctx, pr.ctrl.series, st, lay, opts);
@@ -128,46 +129,63 @@ export function Chart(p: Props) {
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
 
+  /*
+   * Navigation like a trading terminal:
+   *   drag = move (time, and price when the scale is manual) · wheel = zoom around the cursor
+   *   drag on the price axis = stretch the price scale · double-click axis = auto scale · double-click chart = fit
+   *   Shift+drag = select a time range · click a candle = open it · drag the top ruler = move the playhead
+   */
   const onDown = (e: React.PointerEvent) => {
     if (p.staticGhosts || !L.current) return;
     const { x, y } = local(e);
     const lay = L.current;
-    if (x > lay.plotW) return;
     (e.target as Element).setPointerCapture(e.pointerId);
-    const t = lay.t(x);
-    if (y <= RULER_H + 2) {
-      drag.current = { mode: 'seek', x0: x, t0: t };
+    const t = lay.t(Math.min(x, lay.plotW));
+    if (x > lay.plotW) drag.current = { mode: 'yscale', x0: x, y0: y, t0: t, y: [lay.yMin, lay.yMax] };
+    else if (y <= RULER_H + 2) {
+      drag.current = { mode: 'seek', x0: x, y0: y, t0: t };
       p.ctrl.seek(t, true);
-    } else if (e.shiftKey || e.button === 1) {
-      drag.current = { mode: 'pan', x0: x, t0: t, v: p.ctrl.s.viewport };
-    } else {
-      drag.current = { mode: 'pending', x0: x, t0: t };
-    }
+    } else if (e.shiftKey) drag.current = { mode: 'pending-select', x0: x, y0: y, t0: t };
+    else drag.current = { mode: 'pending', x0: x, y0: y, t0: t, v: p.ctrl.s.viewport, y: [lay.yMin, lay.yMax] };
   };
   const onMove = (e: React.PointerEvent) => {
     if (p.staticGhosts) return;
-    const { x } = local(e);
+    const { x, y } = local(e);
     hover.current = x;
+    hoverY.current = y;
     drawFlag.current = true;
     const d = drag.current;
     const lay = L.current;
     if (!d || !lay) return;
     const t = lay.t(x);
     if (d.mode === 'seek') p.ctrl.seek(t, true);
-    else if (d.mode === 'pan' && d.v) {
-      const dt = ((x - d.x0) / lay.plotW) * (d.v[1] - d.v[0]);
-      p.ctrl.set({ viewport: [d.v[0] - dt, d.v[1] - dt], following: false });
-    } else if (d.mode === 'pending' && Math.abs(x - d.x0) > 4) {
+    else if (d.mode === 'yscale' && d.y) {
+      // drag down = squeeze (zoom out), up = stretch, around the middle of the range
+      const k = Math.exp((y - d.y0) / 180);
+      const mid = (d.y[0] + d.y[1]) / 2;
+      const half = ((d.y[1] - d.y[0]) / 2) * k;
+      p.ctrl.set({ yRange: [mid - half, mid + half] });
+    } else if (d.mode === 'pending' && Math.hypot(x - d.x0, y - d.y0) > 3) d.mode = 'pan';
+    else if (d.mode === 'pending-select' && Math.abs(x - d.x0) > 4) {
       d.mode = 'select';
       p.ctrl.select(d.t0, t);
     } else if (d.mode === 'select') p.ctrl.select(d.t0, t);
+    if (d.mode === 'pan' && d.v && d.y) {
+      const dt = ((x - d.x0) / lay.plotW) * (d.v[1] - d.v[0]);
+      const patch: Partial<typeof p.ctrl.s> = { viewport: [d.v[0] - dt, d.v[1] - dt], following: false };
+      if (p.ctrl.s.yRange) {
+        const dp = ((y - d.y0) / (lay.priceBottom - lay.priceTop)) * (d.y[1] - d.y[0]);
+        patch.yRange = [d.y[0] + dp, d.y[1] + dp];
+      }
+      p.ctrl.set(patch);
+    }
   };
   const onUp = (e: React.PointerEvent) => {
     const d = drag.current;
     drag.current = null;
     const lay = L.current;
     if (!d || !lay) return;
-    if (d.mode !== 'pending') return;
+    if (d.mode !== 'pending' && d.mode !== 'pending-select') return;
     const { x, y } = local(e);
     const sw = hitSwap(p.ctrl.series, lay, p.ctrl.s, x, y);
     if (sw) {
@@ -183,6 +201,12 @@ export function Chart(p: Props) {
       p.onCandle?.(c.t0, c.t1 - 1);
     } else p.ctrl.seek(t, true);
   };
+  const onDouble = (e: React.MouseEvent) => {
+    if (p.staticGhosts || !L.current) return;
+    const { x } = local(e);
+    if (x > L.current.plotW) p.ctrl.set({ yRange: null });
+    else p.ctrl.fit();
+  };
   const onWheel = (e: React.WheelEvent) => {
     if (p.staticGhosts || !L.current) return;
     const lay = L.current;
@@ -190,9 +214,9 @@ export function Chart(p: Props) {
       p.ctrl.pan((e.deltaX / lay.plotW) * (lay.v1 - lay.v0));
       return;
     }
-    if (!e.ctrlKey && !e.altKey && p.compact) return; // let the landing page scroll
+    if (!e.ctrlKey && !e.altKey && p.compact) return; // the homepage keeps normal page scrolling
     const { x } = local(e);
-    p.ctrl.zoom(e.deltaY > 0 ? 1.15 : 1 / 1.15, p.ctrl.s.following ? undefined : lay.t(x));
+    p.ctrl.zoom(e.deltaY > 0 ? 1.15 : 1 / 1.15, p.ctrl.s.following ? undefined : lay.t(Math.min(x, lay.plotW)));
   };
 
   // non-passive wheel to prevent page zoom when zooming the chart
@@ -214,12 +238,14 @@ export function Chart(p: Props) {
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
+        onDoubleClick={onDouble}
         onPointerLeave={() => {
           hover.current = null;
+          hoverY.current = null;
           drawFlag.current = true;
         }}
         onWheel={onWheel}
-        style={{ touchAction: 'pan-y' }}
+        style={{ touchAction: p.compact ? 'pan-y' : 'none', cursor: 'crosshair' }}
       />
     </div>
   );

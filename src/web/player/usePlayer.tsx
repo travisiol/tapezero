@@ -254,8 +254,8 @@ const label = (ms: number) => (ms < 60000 ? `${ms / 1000}s` : `${ms / 60000}m`);
 /** Candle size: automatic (follows the zoom) or fixed. Auto shows the size it picked. */
 export function CandleSize({ ctrl, compact }: { ctrl: PlayerController; compact?: boolean }) {
   const st = ctrl.s;
-  const [v0, v1] = st.viewport;
-  const auto = pickBucket(v1 - v0, compact ? 48 : 70);
+  void compact;
+  const auto = pickBucket(ctrl.series.liveEdge - ctrl.series.start, 120);
   return (
     <div className="candle-size" role="group" aria-label="Candle size">
       <span className="candle-size-label">Candles</span>
@@ -269,6 +269,26 @@ export function CandleSize({ ctrl, compact }: { ctrl: PlayerController; compact?
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** Axis unit and reset, next to the candle size (trading-terminal style). */
+export function ChartTools({ ctrl }: { ctrl: PlayerController }) {
+  const st = ctrl.s;
+  return (
+    <div className="chart-tools">
+      <div className="seg" role="group" aria-label="Axis">
+        <button type="button" className={st.yMode === 'mcap' ? 'on' : ''} aria-pressed={st.yMode === 'mcap'} onClick={() => ctrl.set({ yMode: 'mcap' })}>
+          MCap
+        </button>
+        <button type="button" className={st.yMode === 'price' ? 'on' : ''} aria-pressed={st.yMode === 'price'} onClick={() => ctrl.set({ yMode: 'price' })}>
+          Price
+        </button>
+      </div>
+      <button type="button" className="btn btn-ghost btn-s" onClick={() => ctrl.fit()} title="Show the whole launch and reset the price scale (double-click the chart)">
+        Fit
+      </button>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 // TAPEZERO — X launch post. 1080×1350 (4:5), 31 s, captions burned in (X autoplays muted).
 // Story: problem first, then the product, one plain sentence per screen.
-// Numbers come from the real Dacity Coin swaps of 15 Oct 2026; launch names are real pump.fun launches seen by the collector.
+// Numbers come from the real DacityCoin (DCTY) trades of 18 Nov 2026; launch names are real pump.fun launches seen by the collector.
 import { AbsoluteFill, Audio, staticFile, useCurrentFrame, delayRender, continueRender, interpolate, Easing } from 'remotion';
 import { useEffect, useMemo, useState } from 'react';
 import '@fontsource/space-grotesk/400.css';
@@ -22,6 +22,7 @@ import { C } from '../src/core/theme.ts';
 import { fmtClock, short } from '../src/core/format.ts';
 import { usd } from '../src/core/summary.ts';
 import type { LaunchBundle } from '../src/core/types.ts';
+import { REFERENCE, expandBundle } from '../src/core/reference.ts';
 
 export const PROMO_W = 1080;
 export const PROMO_H = 1350;
@@ -40,7 +41,7 @@ function useData() {
   const [h] = useState(() => delayRender('data'));
   useEffect(() => {
     Promise.all([
-      fetch(staticFile('data/dacity-gta6.json')).then((r) => r.json()),
+      fetch(staticFile('data/dcty.json')).then((r) => r.json()).then(expandBundle),
       ...['400 20px "Space Grotesk"', '500 20px "Space Grotesk"', '700 20px "Space Grotesk"', '400 20px "IBM Plex Mono"', '500 20px "IBM Plex Mono"'].map((f) => document.fonts.load(f)),
     ]).then(([j]) => {
       setB(j as LaunchBundle);
@@ -121,15 +122,15 @@ function Explode({ t, d }: { t: number; d: Data }) {
       <Headline t={t} from={Q.explode}>
         Some explode
         <br />
-        <Dim>in seconds.</Dim>
+        <Dim>{d.seconds < 120 ? "in seconds." : "in minutes."}</Dim>
       </Headline>
       <div style={{ position: 'absolute', left: 0, right: 0, top: 520, textAlign: 'center' }}>
-        <div style={mono(32)}>Dacity Coin · market cap</div>
+        <div style={mono(32)}>{REFERENCE.name} · market cap</div>
         <div style={{ ...big, fontSize: 210, color: k > 0.98 ? C.buy : C.text, fontVariantNumeric: 'tabular-nums', marginTop: 10 }}>{usd(v)}</div>
         <div style={{ ...big, fontSize: 52, color: C.text2, marginTop: 18, opacity: out(Q.explode + 2.2, Q.explode + 2.7, t) }}>
-          from {usd(d.mcStart)} in {d.seconds} seconds
+          from {usd(d.mcStart)} in {d.seconds < 120 ? `${d.seconds} seconds` : `${Math.round(d.seconds / 60)} minutes`}
         </div>
-        <div style={{ ...mono(28, C.text2), marginTop: 50, opacity: out(Q.explode + 2.4, Q.explode + 2.9, t) }}>15 Oct 2026 · after a GTA VI trailer</div>
+        <div style={{ ...mono(28, C.text2), marginTop: 50, opacity: out(Q.explode + 2.4, Q.explode + 2.9, t) }}>{REFERENCE.date} · real trades on {REFERENCE.venue}</div>
       </div>
     </>
   );
@@ -233,7 +234,7 @@ function Inspect({ t, d }: { t: number; d: Data }) {
         <Dim>See who bought it.</Dim>
       </Headline>
       <div style={{ ...mono(30, C.text2), position: 'absolute', left: 80, top: 470, opacity: out(Q.inspect + 0.3, Q.inspect + 0.6, t) }}>
-        Dacity Coin · {fmtClock(d.ca / 1000)} → {fmtClock(d.cb / 1000)} UTC
+        {REFERENCE.name} · {fmtClock(d.ca / 1000)} → {fmtClock(d.cb / 1000)} UTC
       </div>
       <div style={{ position: 'absolute', left: 80, right: 80, top: 560, borderLeft: `8px solid ${C.accent}`, paddingLeft: 44 }}>
         {lines.map((l, i) => {

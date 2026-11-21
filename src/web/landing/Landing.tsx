@@ -4,7 +4,7 @@ import { emph } from '../player/emph.tsx';
 import { Wordmark, ZeroMark } from './Brand.tsx';
 import { LandingPlayer, busiestCandle } from './LandingPlayer.tsx';
 import { prefersReducedMotion } from '../util.ts';
-import { referenceHandle, type LaunchHandle } from '../data/sources.ts';
+import { REFERENCE, referenceHandle, type LaunchHandle } from '../data/sources.ts';
 import { PlayerController } from '../../core/player.ts';
 import { Chart } from '../player/Chart.tsx';
 import { computeWindow, usdAt } from '../../core/metrics.ts';
@@ -37,7 +37,7 @@ function Trailer() {
     );
   return (
     <figure className="trailer">
-      <video ref={v} src={TRAILER_SRC} poster={TRAILER_POSTER} muted loop playsInline autoPlay={!reduced} preload="auto" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onError={() => setFailed(true)} aria-label="TAPEZERO in 10 seconds: rewinding the real Dacity Coin trades" />
+      <video ref={v} src={TRAILER_SRC} poster={TRAILER_POSTER} muted loop playsInline autoPlay={!reduced} preload="auto" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onError={() => setFailed(true)} aria-label="TAPEZERO in 10 seconds: rewinding real DacityCoin trades" />
       <div className="trailer-ctrl">
         <button type="button" className="btn btn-icon btn-glass" onClick={() => (v.current!.paused ? v.current!.play().catch(() => {}) : v.current!.pause())} aria-label={playing ? 'Pause' : 'Play'}>
           {playing ? <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3h3v10H4zM9 3h3v10H9z" fill="currentColor" /></svg> : <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11L13 8z" fill="currentColor" /></svg>}
@@ -89,7 +89,7 @@ function CandleReading({ h }: { h: LaunchHandle }) {
   return (
     <div className="reading">
       <p className="panel-kicker">
-        Dacity Coin · {fmtClock(m.a / 1000)} → {fmtClock(m.b / 1000)} UTC
+        {REFERENCE.name} · {fmtClock(m.a / 1000)} → {fmtClock(m.b / 1000)} UTC
       </p>
       <ul className="story">
         {summarize(m, solUsd)
@@ -123,7 +123,7 @@ function TradesDemo({ h }: { h: LaunchHandle }) {
     return { trades: h.series.range(a, b).sort((x, y) => y.sol - x.sol).slice(0, 8), solUsd: usdAt(h.bundle.usd, a)?.solUsd ?? null };
   }, [h]);
   return (
-    <ol className="trades-demo" aria-label="Real Dacity Coin trades">
+    <ol className="trades-demo" aria-label={`Real ${REFERENCE.name} trades`}>
       {trades.map((t) => (
         <li key={t.id}>
           <span className="mono muted">{fmtClock(t.chainTime)}</span>
@@ -142,7 +142,7 @@ function TradesDemo({ h }: { h: LaunchHandle }) {
 const FAQ: [string, string][] = [
   ['What is TAPEZERO?', 'A player for Solana token launches. You can pause a launch while it is still trading, go back in time, and click any candle to see the trades and wallets that made it.'],
   ['Which coins are covered?', 'Tokens launched on pump.fun, on their bonding curve and after they move to PumpSwap. Other venues are not covered yet.'],
-  ['Is it live?', 'The terminal follows new launches live when the collector is running. The example on this page is a replay of real trades from 15 October 2026.'],
+  ['Is it live?', 'The terminal follows new launches live when the collector is running. The example on this page is a replay of real DacityCoin trades from 18 November 2026.'],
   ['Where does the data come from?', 'Straight from Solana: every trade is read from the transaction itself and links to Solscan so you can check it.'],
   ['Does it tell me what to buy?', 'No. TAPEZERO shows what happened — who bought, how much, when. It never gives buy or sell signals or predictions.'],
   ['Do I need an account?', 'No. The terminal is free and public.'],
@@ -231,7 +231,7 @@ export function Landing() {
           <div className="feature-copy">
             <p className="feature-kicker">Check</p>
             <h2 id="f3">Every trade, one click from proof.</h2>
-            <p>Each line is a real Solana transaction: time, buy or sell, amount, wallet. Open it on Solscan and check it yourself. These are the biggest trades of Dacity’s busiest five seconds.</p>
+            <p>Each line is a real Solana transaction: time, buy or sell, amount, wallet. Open it on Solscan and check it yourself. These are the biggest trades of DacityCoin’s busiest five seconds.</p>
           </div>
           <div className="feature-ui">
             {ref ? <TradesDemo h={ref} /> : <div className="feature-loading" />}
@@ -242,7 +242,7 @@ export function Landing() {
       <section id="example" className="section section-player" aria-labelledby="ex-title">
         <div className="example-head">
           <p className="feature-kicker">Real example</p>
-          <h2 id="ex-title" className="section-title">The GTA VI “Dacity Coin” moment.</h2>
+          <h2 id="ex-title" className="section-title">DacityCoin: $685k to $3.2M in four minutes.</h2>
         </div>
         <LandingPlayer />
       </section>

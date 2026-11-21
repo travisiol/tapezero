@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { REFERENCE, referenceHandle, type LaunchHandle, type Provenance } from '../data/sources.ts';
-import { Chart } from '../player/Chart.tsx';
+import { TVChart } from '../player/TVChart.tsx';
 import { CandleSize, Transport, usePlayer, usePlayerKeys, shareUrl } from '../player/usePlayer.tsx';
 import { filterIds, SideTag, TxLink } from '../player/CandlePanel.tsx';
 import { Link } from '../router.tsx';
@@ -74,15 +74,15 @@ function Player({ h }: { h: LaunchHandle & { provenance: Provenance } }) {
   const [w0, w1] = prov.windowUtc.map((x) => new Date(x));
   return (
     <>
-      <div className="lp" ref={box} tabIndex={-1} aria-label="Replay of real Dacity Coin swaps">
+      <div className="lp" ref={box} tabIndex={-1} aria-label={`Replay of real ${REFERENCE.name} trades`}>
         <div className="lp-head">
           <div>
             <span className="badge badge-real">Real on-chain data</span>
             <span className="lp-title">
-              Dacity Coin <span className="muted">· PumpSwap</span>
+              {REFERENCE.name} <span className="muted">· {REFERENCE.symbol} · {REFERENCE.venue}</span>
             </span>
             <span className="muted small">
-              15 Oct 2026, {fmtClock(w0.getTime() / 1000)}–{fmtClock(w1.getTime() / 1000)} UTC · {h.series.size} swaps
+              {REFERENCE.date}, {fmtClock(w0.getTime() / 1000)}–{fmtClock(w1.getTime() / 1000)} UTC · {h.series.size} swaps
             </span>
           </div>
           <div className="row gap-s wrap">
@@ -98,7 +98,7 @@ function Player({ h }: { h: LaunchHandle & { provenance: Provenance } }) {
             <div className="chart-bar">
               <CandleSize ctrl={ctrl} compact />
             </div>
-            <Chart ctrl={ctrl} t0={p.t0} gaps={[]} isLive={false} usdPerSol={p.usdPerSol} supply={h.bundle.launch.supply} dimIds={dimIds} compact label="Dacity Coin price and swaps. Click a candle to see who bought it." />
+            <TVChart ctrl={ctrl} isLive={false} usdPerSol={p.usdPerSol} supply={h.bundle.launch.supply} height={330} compact label={`${REFERENCE.name} price and volume. Click a candle to see who bought it.`} />
             <Transport ctrl={ctrl} h={h} t0={p.t0} compact />
           </div>
           <div className="lp-side" aria-live="polite">
@@ -135,7 +135,6 @@ function Player({ h }: { h: LaunchHandle & { provenance: Provenance } }) {
                         <SideTag side={s.side} />
                         <span className="mono num">{p.usdPerSol ? usd(s.sol * p.usdPerSol) : `${fmtSol(s.sol)} SOL`}</span>
                         <span className="mono muted">{fmtClock(s.chainTime)}</span>
-                        <span className="mono muted">{short(s.wallet)}</span>
                       </button>
                       <TxLink sig={s.signature} mode="live" />
                     </li>

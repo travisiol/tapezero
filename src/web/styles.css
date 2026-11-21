@@ -504,3 +504,23 @@ table.archive, table.cmp { border-collapse: collapse; width: 100%; font-size: 13
 .candle-size-label { font-size: 13px; color: var(--text2); font-weight: 500; }
 .candle-size .seg button { font-family: var(--sans); font-size: 12.5px; font-weight: 600; padding: 5px 10px; }
 .lp-chart .chart-bar { margin-bottom: 6px; }
+.chart-bar { justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.chart-tools { display: flex; align-items: center; gap: 8px; }
+.chart-tools .seg button { font-family: var(--sans); font-size: 12.5px; font-weight: 600; padding: 5px 10px; }
+
+/* ───────────── TradingView chart + TAPEZERO layer ───────────── */
+.tv-wrap { position: relative; flex: 1; min-height: 380px; border: 1px solid var(--divider); border-radius: var(--r-m); overflow: hidden; background: var(--chart); }
+.center .tv-wrap { min-height: 440px; }
+.tv-host { position: absolute; inset: 0; }
+.tv-layer { position: absolute; inset: 0 64px 28px 0; pointer-events: none; overflow: hidden; z-index: 3; }
+.tv-ph, .tv-live, .tv-sel { position: absolute; top: 0; bottom: 0; left: 0; display: none; }
+.tv-ph { width: 2px; margin-left: -1px; background: var(--accent); box-shadow: 0 0 14px rgba(255, 104, 73, 0.6); }
+.tv-live { width: 0; border-left: 1px dashed rgba(255, 240, 231, 0.6); }
+.tv-live span { position: absolute; top: 6px; left: -18px; font: 600 10px var(--mono); color: var(--bg); background: var(--text); border-radius: 7px; padding: 1px 6px; }
+.tv-sel { background: rgba(255, 179, 148, 0.10); border-left: 1px solid var(--peach); border-right: 1px solid var(--peach); }
+.tv-legend { position: absolute; left: 10px; top: 8px; z-index: 4; display: flex; flex-wrap: wrap; gap: 4px 12px; font: 12px var(--mono); color: var(--text2); pointer-events: none; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+.tv-legend b { color: var(--text); font-weight: 600; }
+.tv-legend b.up { color: var(--buy); }
+.tv-legend b.down { color: var(--sell); }
+.lp-chart .tv-wrap { min-height: 0; flex: none; }
+.lp-top .swaprow { grid-template-columns: 58px 1fr 70px; }

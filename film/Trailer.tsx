@@ -1,5 +1,5 @@
 // TAPEZERO trailer — 10 s, 1920×1080. Built to read at small sizes (homepage hero, X feed, muted):
-// one idea per shot, big type, the real chart only. Data: real Dacity Coin swaps (15 Oct 2026).
+// one idea per shot, big type, the real chart only. Data: real DacityCoin (DCTY) trades, 18 Nov 2026.
 import { AbsoluteFill, Audio, Sequence, staticFile, useCurrentFrame, delayRender, continueRender, interpolate, Easing } from 'remotion';
 import { useEffect, useMemo, useState } from 'react';
 import '@fontsource/space-grotesk/400.css';
@@ -21,6 +21,7 @@ import { C } from '../src/core/theme.ts';
 import { fmtClock } from '../src/core/format.ts';
 import { usd as fmtMoney } from '../src/core/summary.ts';
 import type { LaunchBundle } from '../src/core/types.ts';
+import { REFERENCE, expandBundle } from '../src/core/reference.ts';
 
 const sm = (a: number, b: number, x: number) => interpolate(x, [a, b], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.cubic) });
 const out = (a: number, b: number, x: number) => interpolate(x, [a, b], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) });
@@ -30,7 +31,7 @@ function useBundle() {
   const [h] = useState(() => delayRender('data'));
   useEffect(() => {
     Promise.all([
-      fetch(staticFile('data/dacity-gta6.json')).then((r) => r.json()),
+      fetch(staticFile('data/dcty.json')).then((r) => r.json()).then(expandBundle),
       ...['400 20px "Space Grotesk"', '500 20px "Space Grotesk"', '700 20px "Space Grotesk"', '400 20px "IBM Plex Mono"', '500 20px "IBM Plex Mono"'].map((f) => document.fonts.load(f)),
     ]).then(([j]) => {
       setB(j as LaunchBundle);
@@ -113,7 +114,7 @@ function Market({ t, b }: { t: number; b: LaunchBundle }) {
     <AbsoluteFill>
       {/* label + live market cap */}
       <div style={{ position: 'absolute', left: 110, top: 64 }}>
-        <div style={{ font: '500 30px IBM Plex Mono', color: C.peach, letterSpacing: '0.04em' }}>DACITY COIN · 15 OCT 2026 · {fmtClock(playhead / 1000)} UTC</div>
+        <div style={{ font: '500 30px IBM Plex Mono', color: C.peach, letterSpacing: '0.04em' }}>{REFERENCE.name.toUpperCase()} · {REFERENCE.date.toUpperCase()} · {fmtClock(playhead / 1000)} UTC</div>
         <div style={{ ...big, fontSize: 132, lineHeight: 1.02, marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>
           {fmtMoney(mcap)} <span style={{ fontSize: 46, color: C.text2, letterSpacing: 0 }}>market cap</span>
         </div>

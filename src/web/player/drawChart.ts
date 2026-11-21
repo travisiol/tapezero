@@ -19,6 +19,7 @@ export interface ChartOpts {
   ghosts?: { t: number; a: number }[];
   compact?: boolean;
   hoverX?: number | null;
+  hoverY?: number | null;
 }
 
 export interface ChartLayout {
@@ -66,7 +67,10 @@ export function layoutChart(series: SwapSeries, st: PlayerState, w: number, h: n
     yMax = p * 1.1;
   }
   const pad = (yMax - yMin) * 0.12 || yMax * 0.05;
-  return { w, h, plotW, priceTop, priceBottom, trackTop, trackBottom, v0, v1, bucket, candles, x, t, yMin: yMin - pad, yMax: yMax + pad };
+  // volume lives in the bottom 18% of the price pane: give the candles room above it
+  const lo = st.yRange ? st.yRange[0] : yMin - pad - (yMax - yMin + 2 * pad) * 0.22;
+  const hi = st.yRange ? st.yRange[1] : yMax + pad;
+  return { w, h, plotW, priceTop, priceBottom, trackTop, trackBottom, v0, v1, bucket, candles, x, t, yMin: lo, yMax: hi };
 }
 
 export function drawChart(ctx: CanvasRenderingContext2D, series: SwapSeries, st: PlayerState, L: ChartLayout, opts: ChartOpts) {
@@ -155,6 +159,26 @@ export function drawChart(ctx: CanvasRenderingContext2D, series: SwapSeries, st:
       ctx.fillRect(Math.round(px) - 0.5, RULER_H + 1, 1, trackBottom - RULER_H);
       roundRect(ctx, Math.round(px) - 3, priceTop + (priceBottom - priceTop) / 2 - 10, 6, 20, 3);
       ctx.fill();
+    }
+  }
+
+  // volume — buys over sells, bottom of the price pane
+  {
+    let vmax = 0;
+    for (const c of L.candles) vmax = Math.max(vmax, c.buySol + c.sellSol);
+    if (vmax > 0) {
+      const volH = (priceBottom - priceTop) * 0.18;
+      const vw = Math.max(1.5, Math.min(18, ((L.bucket / (L.v1 - L.v0)) * plotW) * 0.62));
+      for (const c of L.candles) {
+        if (!c.count) continue;
+        const cx = x(c.t0 + L.bucket / 2);
+        const hb = (c.buySol / vmax) * volH;
+        const hs = (c.sellSol / vmax) * volH;
+        ctx.fillStyle = alpha(C.buy, 0.28);
+        ctx.fillRect(cx - vw / 2, priceBottom - hb, vw, hb);
+        ctx.fillStyle = alpha(C.sell, 0.28);
+        ctx.fillRect(cx - vw / 2, priceBottom - hb - hs, vw, hs);
+      }
     }
   }
 
@@ -258,11 +282,15 @@ export function drawChart(ctx: CanvasRenderingContext2D, series: SwapSeries, st:
   for (let i = 0; i <= 4; i++) {
     const p = L.yMax - ((L.yMax - L.yMin) * i) / 4;
     const py = priceTop + ((priceBottom - priceTop) * i) / 4;
-    const lab = opts.usdPerSol ? fmtUsd(p * opts.supply * opts.usdPerSol) : fmtPrice(p);
+    const lab = opts.usdPerSol && st.yMode === 'mcap' ? fmtUsd(p * opts.supply * opts.usdPerSol) : fmtPrice(p);
     ctx.fillText(lab, plotW + 8, py);
   }
   ctx.fillStyle = alpha(C.text2, 0.7);
-  ctx.fillText(opts.usdPerSol ? 'FDV' : 'SOL/tok', plotW + 8, priceTop - 6);
+  ctx.fillText(opts.usdPerSol && st.yMode === 'mcap' ? 'MCap' : 'SOL/tok', plotW + 8, priceTop - 6);
+  if (st.yRange) {
+    ctx.fillStyle = C.peach;
+    ctx.fillText('manual', plotW + 8, priceBottom + 4);
+  }
 
   // live edge marker — dashed cream + LIVE tag, distinct from the playhead
   if (opts.isLive) {
@@ -325,13 +353,69 @@ export function drawChart(ctx: CanvasRenderingContext2D, series: SwapSeries, st:
     }
   }
 
-  // hover crosshair
+  // crosshair + legend of the hovered candle (like a trading terminal)
   if (opts.hoverX != null && opts.hoverX >= 0 && opts.hoverX <= plotW) {
-    ctx.strokeStyle = alpha(C.text, 0.18);
+    const hx = Math.round(opts.hoverX) + 0.5;
+    ctx.strokeStyle = alpha(C.text, 0.28);
+    ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(Math.round(opts.hoverX) + 0.5, RULER_H);
-    ctx.lineTo(Math.round(opts.hoverX) + 0.5, trackBottom);
+    ctx.moveTo(hx, RULER_H);
+    ctx.lineTo(hx, trackBottom);
+    const hy = opts.hoverY;
+    if (hy != null && hy >= priceTop && hy <= priceBottom) {
+      ctx.moveTo(0, Math.round(hy) + 0.5);
+      ctx.lineTo(plotW, Math.round(hy) + 0.5);
+    }
     ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = `600 11px ${FONT_MONO}`;
+    // time tag on the ruler
+    const tt = new Date(L.t(opts.hoverX)).toISOString().slice(11, 19);
+    const tw = ctx.measureText(tt).width + 12;
+    ctx.fillStyle = C.text;
+    roundRect(ctx, Math.min(Math.max(0, hx - tw / 2), plotW - tw), 4, tw, 17, 4);
+    ctx.fill();
+    ctx.fillStyle = C.bg;
+    ctx.fillText(tt, Math.min(Math.max(0, hx - tw / 2), plotW - tw) + 6, 13);
+    // value tag on the axis
+    if (hy != null && hy >= priceTop && hy <= priceBottom) {
+      const pv = L.yMax - ((hy - priceTop) / (priceBottom - priceTop)) * (L.yMax - L.yMin);
+      const lab = opts.usdPerSol && st.yMode === 'mcap' ? fmtUsd(pv * opts.supply * opts.usdPerSol) : fmtPrice(pv);
+      ctx.fillStyle = C.text;
+      roundRect(ctx, plotW + 2, hy - 9, GUTTER_R - 4, 18, 4);
+      ctx.fill();
+      ctx.fillStyle = C.bg;
+      ctx.fillText(lab, plotW + 7, hy + 0.5);
+    }
+    // legend
+    const c = L.candles.find((k) => k.t0 <= L.t(opts.hoverX!) && L.t(opts.hoverX!) < k.t1);
+    if (c) {
+      const fmt = (p: number) => (opts.usdPerSol && st.yMode === 'mcap' ? fmtUsd(p * opts.supply * opts.usdPerSol) : fmtPrice(p));
+      const chg = c.open ? ((c.close / c.open - 1) * 100).toFixed(2) : '0';
+      const usd = (sol: number) => (opts.usdPerSol ? fmtUsd(sol * opts.usdPerSol) : sol.toFixed(2) + ' SOL');
+      const parts: [string, string][] = [
+        ['O', fmt(c.open)],
+        ['H', fmt(c.high)],
+        ['L', fmt(c.low)],
+        ['C', fmt(c.close)],
+        ['', (Number(chg) >= 0 ? '+' : '') + chg + '%'],
+        ['Vol', usd(c.buySol + c.sellSol)],
+        ['', c.count + ' trades'],
+      ];
+      let lx = 8;
+      const ly = RULER_H + 14;
+      ctx.font = `500 11.5px ${FONT_MONO}`;
+      for (const [k, v] of parts) {
+        if (k) {
+          ctx.fillStyle = C.text2;
+          ctx.fillText(k, lx, ly);
+          lx += ctx.measureText(k).width + 4;
+        }
+        ctx.fillStyle = k === '' && v.endsWith('%') ? (Number(chg) >= 0 ? C.buy : C.sell) : C.text;
+        ctx.fillText(v, lx, ly);
+        lx += ctx.measureText(v).width + 12;
+      }
+    }
   }
 }
 

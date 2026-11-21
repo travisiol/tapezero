@@ -6,16 +6,17 @@ import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { decodeLogs } from '../server/pump.ts';
 import { rpc, RPC_URL } from '../server/rpc.ts';
 import type { LaunchBundle, SwapLeg, UsdRef } from '../src/core/types.ts';
+import { compactBundle } from '../src/core/reference.ts';
 
 const REF = {
-  key: 'dacity-gta6',
-  mint: 'nxPqZ4F7ux8Vph5NFu25rEP6Kx9Gr1U6Fmj36Rjpump',
-  pool: 'G2UuRbmVDzDFP4qyoBJrSKBXSi7d6V4bPP9tHPs36y4b',
-  name: 'Dacity Coin',
-  symbol: 'Dacity',
-  from: Date.UTC(2026, 9, 15, 13, 1, 50) / 1000,
-  to: Date.UTC(2026, 9, 15, 13, 3, 20) / 1000,
-  context: 'GTA VI trailer shows a fictional "Dacity Coin" — the Solana token with that name reprices within minutes.',
+  key: 'dcty',
+  mint: '9hjBLBrc7WZW2H8UQvBAvG5WiTZotXUv2Bdcn4f4pump',
+  pool: 'DChXQ4qFPpNPEDfZLNiwvPhrVuuFGfqEDLAAZbiZHUWf',
+  name: 'DacityCoin',
+  symbol: 'DCTY',
+  from: Date.UTC(2026, 10, 18, 15, 55, 0) / 1000,
+  to: Date.UTC(2026, 10, 18, 15, 58, 50) / 1000,
+  context: 'DacityCoin (DCTY) goes from $730k to $7.4M market cap in four minutes on 18 Nov 2026.',
   // The pool is quoted in TTWO (Backpack tokenized Take-Two shares, 6 decimals), not SOL.
   quoteMint: 'TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo',
   quoteSymbol: 'TTWO',
@@ -37,6 +38,25 @@ async function call<T>(m: string, p: unknown[], tries = 8): Promise<T> {
   }
 }
 
+/** JSON-RPC batch (one HTTP request, many calls). Retries the whole batch on rate limits. */
+async function batch<T>(method: string, paramsList: unknown[][], tries = 8): Promise<(T | null)[]> {
+  for (let i = 0; ; i++) {
+    try {
+      const r = await fetch(RPC_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(paramsList.map((params, id) => ({ jsonrpc: '2.0', id, method, params }))), signal: AbortSignal.timeout(30_000) });
+      if (r.status === 429) throw new Error('429');
+      const j = (await r.json()) as { id: number; result?: T; error?: { code: number } }[];
+      if (!Array.isArray(j)) throw new Error('not a batch reply');
+      if (j.some((x) => x.error?.code === 429 || x.error?.code === -32429)) throw new Error('429 in batch');
+      const out: (T | null)[] = new Array(paramsList.length).fill(null);
+      for (const x of j) out[x.id] = x.result ?? null;
+      return out;
+    } catch (e) {
+      if (i >= tries) throw e;
+      await sleep(800 * 2 ** Math.min(i, 5));
+    }
+  }
+}
+
 async function slotAt(ts: number): Promise<number> {
   let hi = await call<number>('getSlot', [{ commitment: 'finalized' }]);
   let lo = hi - 40_000_000;
@@ -44,7 +64,7 @@ async function slotAt(ts: number): Promise<number> {
   const timeOf = async (s: number): Promise<number> => {
     for (let k = 0; k < 20; k++) {
       try {
-        const t = await call<number | null>('getBlockTime', [s + k], 2);
+        const t = await call<number | null>('getBlockTime', [s + k], 6);
         if (t != null) return t;
       } catch {
         /* skipped slot */
@@ -106,20 +126,27 @@ async function main() {
   const todo = cache.sigs.filter((s) => !s.err && inWin(s) && !(s.signature in cache.tx)).reverse();
   console.log(`${cache.sigs.length} signatures in window, ${todo.length} transactions to fetch`);
   let done = 0;
+  const B = Number(process.env.FETCH_BATCH ?? 1);
   const worker = async () => {
     for (;;) {
-      const s = todo.shift();
-      if (!s) return;
-      const tx = await call<any>('getTransaction', [s.signature, { maxSupportedTransactionVersion: 1, commitment: 'confirmed' }]).catch(() => null);
-      cache.tx[s.signature] = tx && !tx.meta?.err ? { slot: tx.slot, blockTime: tx.blockTime, logs: tx.meta.logMessages ?? [] } : null;
-      if (++done % 25 === 0) {
+      const chunk = todo.splice(0, B);
+      if (!chunk.length) return;
+      const txs = B > 1
+        ? await batch<any>('getTransaction', chunk.map((s) => [s.signature, { maxSupportedTransactionVersion: 1, commitment: 'confirmed' }])).catch(() => chunk.map(() => null))
+        : [await call<any>('getTransaction', [chunk[0].signature, { maxSupportedTransactionVersion: 1, commitment: 'confirmed' }]).catch(() => null)];
+      chunk.forEach((s, i) => {
+        const tx = txs[i];
+        cache.tx[s.signature] = tx && !tx.meta?.err ? { slot: tx.slot, blockTime: tx.blockTime, logs: tx.meta.logMessages ?? [] } : null;
+      });
+      done += chunk.length - 1;
+      if (++done % 500 < B) {
         console.log('fetched', done);
         writeFileSync(CACHE, JSON.stringify(cache));
       }
       await sleep(Number(process.env.FETCH_GAP_MS ?? 450));
     }
   };
-  await Promise.all([worker(), worker()]);
+  await Promise.all(Array.from({ length: Number(process.env.FETCH_WORKERS ?? 2) }, worker));
   writeFileSync(CACHE, JSON.stringify(cache));
 
   // dated SOL/USD: Coinbase 1-minute candles (close), one reference per minute
@@ -206,7 +233,7 @@ async function main() {
       quote: { mint: REF.quoteMint, symbol: REF.quoteSymbol, decimals: REF.quoteDecimals, usdReference: `GeckoTerminal minute close of pool ${REF.quoteUsdPool} (TTWO/USDC)`, conversion: 'SOL-equivalent = TTWO amount × TTWO/USD ÷ SOL/USD, both at the nearest minute' },
     },
   };
-  writeFileSync(OUT, JSON.stringify(bundle));
+  writeFileSync(OUT, JSON.stringify(compactBundle(bundle)));
   console.log(`wrote ${OUT}: ${legs.length} swaps, ${usd.length} usd refs`);
 }
 

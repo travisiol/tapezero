@@ -16,6 +16,8 @@ export interface PlayerState {
   filter: MetricFilter | null;
   blind: boolean; // Blind Replay: nothing after the playhead is visible
   bucket: number | null; // candle size in ms; null = automatic from the zoom level
+  yRange: [number, number] | null; // manual price range (SOL per token); null = auto-fit
+  yMode: 'mcap' | 'price';
 }
 
 /**
@@ -47,6 +49,8 @@ export class PlayerController {
       filter: null,
       blind: false,
       bucket: null,
+      yRange: null,
+      yMode: 'mcap',
       ...init,
     };
   }
@@ -176,7 +180,7 @@ export class PlayerController {
     const a = this.series.start;
     const b = this.liveEdge;
     const pad = Math.max(1000, (b - a) * 0.04);
-    this.set({ viewport: [a - pad, b + pad] });
+    this.set({ viewport: [a - pad, b + pad], yRange: null });
   }
   private ensureVisible(t: number): [number, number] {
     const [v0, v1] = this.s.viewport;

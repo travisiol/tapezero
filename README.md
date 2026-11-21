@@ -111,19 +111,26 @@ On Windows, if the project path is very long, Chrome cannot start (MAX_PATH). Co
 `node_modules/.remotion/chrome-headless-shell/win64/chrome-headless-shell-win64/` to a short path and set
 `REMOTION_BROWSER_EXECUTABLE`.
 
-## Reference replay — Dacity Coin, 15 Oct 2026 (real data)
+## Reference replay — DacityCoin (DCTY), 18 Nov 2026 (real data)
 
-The homepage replay is not synthetic. `scripts/fetch-reference.ts` rebuilds it from Solana mainnet:
+The homepage replay, the default terminal token, the trailer and the X video use real trades, rebuilt from Solana
+mainnet by `scripts/fetch-reference.ts`:
 
-- mint `nxPqZ4F7ux8Vph5NFu25rEP6Kx9Gr1U6Fmj36Rjpump` (Dacity Coin, created on pump.fun on 11 Oct 2026, migrated to PumpSwap),
-  pool `G2UuRbmVDzDFP4qyoBJrSKBXSi7d6V4bPP9tHPs36y4b`;
-- every signature of the pool in the window (`getSignaturesForAddress`), every successful transaction (`getTransaction`),
-  BuyEvent/SellEvent decoded from the logs with the same decoder as the live worker;
-- USD from Coinbase SOL-USD one-minute closes; the bundle carries its provenance (window, counts, failed transactions).
+- mint `9hjBLBrc7WZW2H8UQvBAvG5WiTZotXUv2Bdcn4f4pump` (DacityCoin, DCTY), PumpSwap pool
+  `DChXQ4qFPpNPEDfZLNiwvPhrVuuFGfqEDLAAZbiZHUWf`, quoted in TTWO (Backpack tokenized Take-Two shares);
+- every signature of the pool in the window (`getSignaturesForAddress`), every successful transaction (`getTransaction`,
+  JSON-RPC batches), BuyEvent/SellEvent decoded from the logs with the same decoder as the live worker;
+- amounts converted to SOL-equivalent and USD with dated TTWO/USD (GeckoTerminal minute close of the TTWO/USDC pool)
+  and SOL/USD (Coinbase minute close); the method and counts are stored in the file's `provenance`.
 
-Output: `public/data/dacity-gta6.json`. In the terminal it opens at `/app/live/token/nxPqZ4F7ux8Vph5NFu25rEP6Kx9Gr1U6Fmj36Rjpump`
-as a replay (never live). The public RPC rate-limits `getTransaction` heavily (~30/min observed), so the window is short;
-widen it with `FETCH_FROM` / `FETCH_TO` (unix seconds) and a dedicated RPC.
+Output: `public/data/dcty.json` (compact v2 format: de-duplicated wallets, one array per trade — see
+`src/core/reference.ts`). Rebuild with a provider key in `.env` (never committed):
+
+```bash
+FETCH_BATCH=10 FETCH_WORKERS=1 FETCH_GAP_MS=1000 node --env-file=.env scripts/fetch-reference.ts
+```
+
+The public RPC rate-limits `getTransaction` to ~30/min; a Helius free key does ~10/s with batches of 10.
 
 ## Trailer
 

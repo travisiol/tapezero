@@ -4,6 +4,7 @@ import { SwapSeries } from '../../core/series.ts';
 import { makeCtx } from '../../core/context.ts';
 import { launchStats, type LaunchStats } from '../../core/metrics.ts';
 import type { Coverage, DataMode, FundingEvidence, Gap, Launch, LaunchBundle, SwapLeg } from '../../core/types.ts';
+import { REFERENCE, expandBundle, type CompactBundle } from '../../core/reference.ts';
 
 export interface CollectorHealth {
   ws: 'connected' | 'connecting' | 'reconnecting' | 'down';
@@ -375,12 +376,7 @@ export interface Provenance {
   context: string;
 }
 
-export const REFERENCE = {
-  key: 'dacity-gta6',
-  mint: 'nxPqZ4F7ux8Vph5NFu25rEP6Kx9Gr1U6Fmj36Rjpump',
-  url: '/data/dacity-gta6.json',
-  context: 'A GTA VI trailer shows a fictional “Dacity Coin”. The real Solana token with that name goes from $96k to $540k market cap in 35 seconds. These are those swaps.',
-};
+export { REFERENCE };
 
 const refCache = new Map<string, Promise<LaunchHandle & { provenance: Provenance }>>();
 
@@ -388,7 +384,8 @@ const refCache = new Map<string, Promise<LaunchHandle & { provenance: Provenance
 export function referenceHandle(url = REFERENCE.url): Promise<LaunchHandle & { provenance: Provenance }> {
   let p = refCache.get(url);
   if (!p) {
-    p = getJSON<LaunchBundle & { provenance: Provenance }>(url).then((bundle) => {
+    p = getJSON<LaunchBundle | CompactBundle>(url).then((raw) => {
+      const bundle = expandBundle(raw) as unknown as LaunchBundle & { provenance: Provenance };
       const series = new SwapSeries(bundle.launch.mint);
       series.add(bundle.legs, 0);
       return {

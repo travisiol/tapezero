@@ -3,9 +3,9 @@ import type { DataMode } from '../../core/types.ts';
 import { SOL_EXPLORER_TOKEN } from '../../core/types.ts';
 import { REFERENCE, DEMO_DEFAULT_MINT, ensureDemoClock, isLiveAvailable, listLaunches, openLaunch, trackMint, type LaunchHandle, type LaunchList, type LaunchRow } from '../data/sources.ts';
 import { Link, navigate } from '../router.tsx';
-import { Chart, Overview } from '../player/Chart.tsx';
+import { TVChart } from '../player/TVChart.tsx';
 import { CandlePanel, filterIds } from '../player/CandlePanel.tsx';
-import { CandleSize, readInit, Transport, usePlayer, usePlayerKeys, useShare, type PlayerInit } from '../player/usePlayer.tsx';
+import { CandleSize, ChartTools, readInit, Transport, usePlayer, usePlayerKeys, useShare, type PlayerInit } from '../player/usePlayer.tsx';
 import { fmtDur, fmtSol, fmtUsd, short, fmtDate } from '../../core/format.ts';
 import { isDemoMint } from '../../core/demo.ts';
 import { Archive } from './Archive.tsx';
@@ -102,7 +102,7 @@ function LiveView({ mode, mint, search }: { mode: DataMode; mint: string | null;
         <div className="center-empty dots-bg">
           <p>This link points to an old example that no longer exists.</p>
           <Link className="btn btn-primary" to={`/app/live/token/${REFERENCE.mint}`}>
-            Open Dacity Coin
+            Open {REFERENCE.name}
           </Link>
         </div>
       ) : mint ? (
@@ -220,7 +220,7 @@ function FeedRow({ r, mode, on, onPick }: { r: LaunchRow; mode: DataMode; on: bo
         <span className="fr-name">{r.launch.name}</span>
         <span className="fr-meta mono">
           {st.swaps} swaps · {st.distinctBuyers} buyers · {fmtSol(st.liquiditySol)} SOL
-          {r.launch.mint === REFERENCE.mint ? <span className="tag tag-a">GTA VI · real data</span> : partial && <span className="tag" title={st.historyTruncated ? 'Tracking started after creation' : 'Collector was offline for a moment'}>partial history</span>}
+          {r.launch.mint === REFERENCE.mint ? <span className="tag tag-a">real data · {REFERENCE.date}</span> : partial && <span className="tag" title={st.historyTruncated ? 'Tracking started after creation' : 'Collector was offline for a moment'}>partial history</span>}
         </span>
       </Link>
     </li>
@@ -309,7 +309,7 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
               {L.name} <span className="muted">${L.symbol}</span>
             </h1>
             <p className="small muted">
-              {isRef ? 'Real swaps · 15 Oct 2026 · PumpSwap · ' : L.phase === 'bonding' ? 'pump.fun · ' : 'PumpSwap · '}
+              {isRef ? `Real trades · ${REFERENCE.date} · ${REFERENCE.venue} · ` : L.phase === 'bonding' ? 'pump.fun · ' : 'PumpSwap · '}
               {h.mode === 'demo' ? <span className="mono">{short(L.mint, 6)}</span> : <a className="mono" href={SOL_EXPLORER_TOKEN(L.mint)} target="_blank" rel="noreferrer noopener">{short(L.mint, 6)} ↗</a>}
               {L.origin === 'search' && !isRef && <span className="tag" title="Tracking started after this token was created: earlier swaps are missing">partial history</span>}
             </p>
@@ -336,22 +336,13 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
         {h.bundle.gaps.length > 0 && <p className="notice small">Some moments were not recorded (collector offline). They appear as hatched “NO DATA” zones.</p>}
         <div className="chart-bar">
           <CandleSize ctrl={ctrl} />
+          <ChartTools ctrl={ctrl} />
         </div>
-        <Chart
-          ctrl={ctrl}
-          t0={p.t0}
-          gaps={h.bundle.gaps}
-          isLive={h.live}
-          usdPerSol={p.usdPerSol}
-          supply={L.supply}
-          dimIds={dimIds}
-          label={`Price and swap timeline for ${L.name}. Drag to select a window, click a candle to open it.`}
-        />
-        <Overview ctrl={ctrl} gaps={h.bundle.gaps} />
+        <TVChart ctrl={ctrl} isLive={h.live} usdPerSol={p.usdPerSol} supply={L.supply} label={`Price and volume of ${L.name}. Drag to move, wheel to zoom, click a candle to open it.`} />
         <Transport ctrl={ctrl} h={h} t0={p.t0} onShare={share} />
         {msg && <p className="toast" role="status">{msg}</p>}
         <p className="kbd-hint small muted">
-          Click a candle to see who traded it · drag to pick a time range · <kbd>Space</kbd> play/pause · <kbd>←</kbd> <kbd>→</kbd> one swap at a time · <kbd>Esc</kbd> clear
+          Drag to move · wheel to zoom · drag the price or time axis to stretch it · click a candle to see who traded it · <kbd>Space</kbd> play/pause · <kbd>←</kbd> <kbd>→</kbd> one trade at a time · <kbd>Esc</kbd> clear
         </p>
         <div className="row gap-s pad-t">
           <Link className="btn btn-ghost btn-s" to={`/app/${h.mode}/compare?a=${L.mint}`}>Compare with…</Link>
