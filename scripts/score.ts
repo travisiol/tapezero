@@ -2,10 +2,12 @@
 // Soft, rhythmic electronic at 105 BPM: warm short bass, dry percussion, small playback clicks.
 //   node scripts/score.ts  →  public/film/score.wav (48 kHz, 16-bit stereo, 35 s)
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { FILM_CUES as Q } from '../film/cues.ts';
+import { FILM_CUES as Q, TRAILER_CUES as T } from '../film/cues.ts';
+
+const TRAILER = process.argv[2] === 'trailer';
 
 const SR = 48000;
-const DUR = 35;
+const DUR = TRAILER ? 10 : 35;
 const N = SR * DUR;
 const L = new Float32Array(N);
 const R = new Float32Array(N);
@@ -113,9 +115,32 @@ function texture(t0: number, len: number, g = 0.05) {
   }, g, 0.1);
 }
 
-// ── arrangement (cues shared with the picture: film/cues.ts) ──
+// ── arrangements (cues shared with the picture: film/cues.ts) ──
 const beatT = (b: number) => b * BEAT;
 const bassLine = [33, 33, 45, 33, 36, 36, 40, 38]; // A1 … warm, short
+// ── trailer arrangement (10 s) ──
+function trailerArrangement() {
+  texture(0, DUR, 0.04);
+  pad(0, 2.2, [57, 64, 69], 0.035);
+  click(T.playheadOn, 0.45);
+  add(T.splitStart, T.align - T.splitStart, (t) => rnd() * Math.pow(t / (T.align - T.splitStart), 2) * 0.25, 0.4, 0.2);
+  impact(T.align, 0.95);
+  for (let b = Math.ceil(T.align / BEAT); beatT(b) < T.end - 0.4; b++) {
+    const t = beatT(b);
+    const brk = t >= T.inspect && t < T.inspect + BEAT * 3;
+    kick(t, brk ? 0.3 : 0.8);
+    if (b % 2 === 1) rim(t, 0.2);
+    hat(t + BEAT / 2, 0.11);
+    if (!brk && t < T.outro) bass(t + BEAT / 2, bassLine[b % 8]);
+  }
+  for (let t = T.live; t < T.rewind - 0.1; t += BEAT / 4) if (rnd() > 0.3) tick(t + 0.01, 0.06, rnd() * 0.6);
+  reverseSwell(T.rewind + 0.02, BEAT * 1.5, 0.55);
+  for (let i = 0; i < 6; i++) tick(T.rewind + 0.05 + i * 0.07, 0.12 - i * 0.015, -0.3 + i * 0.12);
+  T.pings.forEach((t, i) => ping(t, [76, 79, 83][i], 0.2, [-0.35, 0.05, 0.4][i]));
+  pad(T.outro, T.end - T.outro, [57, 64, 71], 0.045);
+  impact(T.final, 0.9);
+}
+function filmArrangement() {
 
 texture(0, DUR, 0.045);
 pad(0, 9.2, [57, 64, 69], 0.035);
@@ -166,6 +191,10 @@ for (let b = Math.ceil(Q.liveReturn / BEAT); beatT(b) < Q.finalImpact - 0.01; b+
 }
 impact(Q.finalImpact, 1);
 
+}
+if (TRAILER) trailerArrangement();
+else filmArrangement();
+
 // ── master: gentle glue, soft clip, normalise to −1 dBFS, fade out ──
 let peak = 0;
 for (let i = 0; i < N; i++) {
@@ -193,5 +222,5 @@ for (let i = 0; i < N; i++) {
   buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, R[i] * norm)) * 32767), 46 + i * 4);
 }
 mkdirSync('public/film', { recursive: true });
-writeFileSync('public/film/score.wav', buf);
-console.log(`score.wav written · ${DUR}s · peak normalised from ${peak.toFixed(2)}`);
+writeFileSync(TRAILER ? 'public/film/trailer.wav' : 'public/film/score.wav', buf);
+console.log(`${TRAILER ? 'trailer' : 'score'}.wav written · ${DUR}s · peak normalised from ${peak.toFixed(2)}`);

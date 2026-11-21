@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import * as THREE from 'three';
 import { ZeroRig } from './ZeroScene.tsx';
 
-/** Hero 3D canvas. Loaded lazily after the page content; the poster stays underneath until the first frame. */
+/** Hero 3D canvas, loaded after the page content. Transparent: the bordeaux, glow and dot grid are CSS. */
 export default function HeroCanvas({ reduced, onReady }: { reduced: boolean; onReady: () => void }) {
   const [pulse, setPulse] = useState(0);
   const [wide, setWide] = useState(() => window.innerWidth >= 900);
@@ -20,14 +19,14 @@ export default function HeroCanvas({ reduced, onReady }: { reduced: boolean; onR
   return (
     <Canvas
       className="hero-canvas"
-      dpr={[1, 1.75]}
+      dpr={[1, 2]}
       camera={{ position: [0, 0, 6], fov: 30 }}
-      gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05, powerPreference: 'high-performance' }}
+      gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       frameloop={reduced ? 'demand' : 'always'}
-      onCreated={() => requestAnimationFrame(() => onReady())}
+      onCreated={() => onReady()}
       aria-hidden="true"
     >
-      <ZeroRig position={wide ? [1.35, 0.05, 0] : [0.05, 0.78, 0]} scale={wide ? 1 : 0.42} reduced={reduced} pulseKey={pulse} />
+      <ZeroRig position={wide ? [1.3, 0, 0] : [0, 0.8, 0]} scale={wide ? 0.95 : 0.42} reduced={reduced} pulseKey={pulse} />
     </Canvas>
   );
 }

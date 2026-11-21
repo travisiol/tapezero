@@ -13,7 +13,9 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "film:score": "node --experimental-strip-types scripts/score.ts",
     "film:studio": "remotion studio film/index.ts",
-    "film:render": "node scripts/render-film.mjs"
+    "film:render": "node scripts/render-film.mjs",
+    "trailer:render": "node scripts/score.ts trailer && remotion render film/index.ts Trailer public/film/trailer.mp4 --codec=h264 --crf=23 --audio-codec=aac --pixel-format=yuv420p --gl=angle && remotion still film/index.ts Trailer public/film/trailer-poster.jpg --frame=195 --image-format=jpeg --jpeg-quality=85 --gl=angle",
+    "reference:fetch": "node scripts/fetch-reference.ts"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.1.0",

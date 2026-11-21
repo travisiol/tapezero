@@ -168,7 +168,7 @@ textarea { width: 100%; resize: vertical; }
 .token-name { font-size: 22px; }
 .statusline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .center .chart { min-height: 330px; }
-.keys { margin-top: 8px; }
+.kbd-hint { margin-top: 8px; }
 
 .panel { border-left: 1px solid var(--divider); background: var(--surface); min-height: 0; overflow: auto; }
 .panel-body { padding: 14px 16px 24px; }
@@ -315,7 +315,7 @@ table.archive, table.cmp { border-collapse: collapse; width: 100%; font-size: 13
   .sheet-handle::before { content: ''; display: block; width: 36px; height: 4px; border-radius: 2px; background: var(--divider); margin: 0 auto 6px; }
   .transport { position: sticky; bottom: 46px; background: var(--bg); padding-bottom: 6px; z-index: 5; }
   .btn-live { position: relative; }
-  .keys { display: none; }
+  .kbd-hint { display: none; }
   .topbar { gap: 10px; padding: 0 10px; }
   .topbar .brand .wordmark { font-size: 13px; }
   .tab { padding: 6px 8px; font-size: 14px; }
@@ -348,3 +348,63 @@ table.archive, table.cmp { border-collapse: collapse; width: 100%; font-size: 13
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* ───────────── readable candle panel ───────────── */
+.panel-kicker { font-size: 12.5px; color: var(--text2); margin-bottom: 2px; }
+.win { font-size: 18px; font-weight: 500; font-family: var(--mono); }
+.story { list-style: none; margin: 12px 0 14px; padding: 0; display: flex; flex-direction: column; gap: 2px; border-left: 2px solid var(--accent); }
+.story-line { display: block; width: 100%; text-align: left; background: none; border: 0; color: var(--text); font: 15px/1.45 var(--sans); padding: 5px 10px; border-radius: 0 var(--r-s) var(--r-s) 0; cursor: pointer; }
+.story-line:disabled { cursor: default; }
+.story-line:not(:disabled):hover { background: rgba(255, 179, 148, 0.07); }
+.story-line.on { background: rgba(255, 179, 148, 0.12); }
+.story-line.up::first-letter, .story-line.down::first-letter { color: inherit; }
+.keys { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+.key { display: flex; flex-direction: column; gap: 1px; text-align: left; padding: 10px 12px; background: var(--bg); border: 1px solid var(--divider); border-radius: var(--r-m); color: var(--text); font: inherit; cursor: pointer; }
+.key:hover { border-color: #6a3a52; }
+.key.on { border-color: var(--peach); background: rgba(255, 179, 148, 0.08); }
+.key-label { font-size: 12.5px; color: var(--text2); }
+.key-value { font-size: 24px; line-height: 1.15; }
+.key-value.up { color: var(--buy); }
+.key-value.down { color: var(--sell); }
+.key-sub { font-size: 12px; color: var(--text2); }
+.more { border-top: 1px solid var(--divider); padding-top: 8px; margin-bottom: 6px; }
+.more summary { cursor: pointer; color: var(--text2); font-size: 13.5px; padding: 4px 0; }
+.more[open] summary { color: var(--text); }
+.metric-def { font-size: 11.5px; color: var(--text2); opacity: 0.85; line-height: 1.35; margin-top: 3px; }
+
+/* ───────────── landing v2: hero + inline trailer + real replay ───────────── */
+.hero { min-height: 0; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(24px, 4vw, 64px); padding: clamp(36px, 7vh, 88px) clamp(20px, 5vw, 72px) clamp(40px, 7vh, 80px); }
+.hero-bg { position: absolute; inset: 0; z-index: -1; overflow: hidden;
+  background:
+    radial-gradient(ellipse 45% 55% at 72% 62%, rgba(255, 104, 73, 0.28), transparent 70%),
+    radial-gradient(ellipse 60% 70% at 70% 50%, #3a1424 0%, var(--bg) 72%); }
+.hero-bg::before { content: ''; position: absolute; inset: 0;
+  background-image: radial-gradient(circle, rgba(255, 120, 80, 0.30) 1px, transparent 1.6px); background-size: 20px 20px;
+  -webkit-mask-image: radial-gradient(ellipse 40% 45% at 72% 22%, #000, transparent 75%); mask-image: radial-gradient(ellipse 40% 45% at 72% 22%, #000, transparent 75%); }
+.hero-copy { padding-top: 0 !important; }
+.hero h1 { font-size: clamp(40px, 5vw, 76px); }
+.trailer { position: relative; margin: 0; aspect-ratio: 16 / 9; border-radius: 18px; overflow: hidden; border: 1px solid rgba(255, 179, 148, 0.18); background: #140810; box-shadow: 0 40px 90px rgba(0, 0, 0, 0.45), 0 0 120px rgba(255, 104, 73, 0.12); }
+.trailer video { width: 100%; height: 100%; display: block; object-fit: cover; }
+.trailer-ctrl { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 8px; }
+.trailer-ctrl .btn { background: rgba(29, 12, 25, 0.6); }
+.trailer-fallback { display: grid; place-items: center; }
+.badge-real { background: rgba(143, 220, 184, 0.12); color: var(--buy); border: 1px solid rgba(143, 220, 184, 0.35); }
+.lp-context { color: var(--text2); font-size: 14.5px; max-width: 80ch; margin: -2px 0 12px; }
+.lp-prov { margin: 12px 2px 0; line-height: 1.5; }
+.lp-loading { min-height: 420px; display: grid; place-items: center; color: var(--text2); }
+.lp-side .story { margin-top: 4px; }
+.lp-side .story-line { font-size: 14px; padding: 4px 9px; }
+.lp-top li { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid rgba(72, 38, 56, 0.6); }
+.lp-top .swaprow { grid-template-columns: 54px 1fr 50px 90px; white-space: nowrap; }
+.steps { list-style: none; counter-reset: step; margin: 34px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+.steps li { counter-increment: step; display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: 1px solid var(--divider); }
+.steps li::before { content: counter(step); font: 500 13px var(--mono); color: var(--accent); }
+.step-text { font-size: 19px; line-height: 1.3; color: var(--text); }
+.step-act { align-self: flex-start; font-size: 14px; color: var(--peach); padding: 0; text-decoration: underline; text-underline-offset: 3px; }
+.section-player { margin-top: 0; }
+@media (max-width: 980px) {
+  .hero { grid-template-columns: 1fr; min-height: 0; padding-top: 28px; align-items: start; }
+  .steps { grid-template-columns: 1fr; gap: 16px; }
+  .step-text { font-size: 17px; }
+}
+.trailer-logo { height: 92%; aspect-ratio: 1; object-fit: cover; -webkit-mask-image: radial-gradient(circle, #000 55%, transparent 72%); mask-image: radial-gradient(circle, #000 55%, transparent 72%); }

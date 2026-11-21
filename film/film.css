@@ -11,3 +11,12 @@
 .film .candle-head .row { display: none; }
 .film .metric-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .film-compare .cmp th, .film-compare .cmp td { padding: 7px 12px; font-size: 16px; }
+.trailer-panel .panel-body { padding: 22px 24px; max-width: 520px; }
+.trailer-panel .story-line { font-size: 21px; line-height: 1.4; padding: 6px 12px; }
+.trailer-panel .win { font-size: 24px; }
+.trailer-panel .key-value { font-size: 34px; }
+.trailer-panel .key-label, .trailer-panel .key-sub { font-size: 15px; }
+.trailer-panel .more { display: none; }
+.trailer-panel .swaprow { grid-template-columns: 74px 84px 96px 1fr; font-size: 18px; }
+.trailer-panel .txlink { display: none; }
+.film .tags { display: none; }

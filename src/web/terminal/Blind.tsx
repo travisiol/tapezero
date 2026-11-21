@@ -109,7 +109,7 @@ function BlindView({ h }: { h: LaunchHandle }) {
         <Transport ctrl={ctrl} h={h} t0={p.t0} blind />
       </main>
       <aside className="panel">
-        <CandlePanel ctrl={ctrl} m={p.metrics} tape={p.tape} t0={p.t0} mode={h.mode} filter={st.filter} highlight={st.highlight} onShare={() => {}} compact />
+        <CandlePanel ctrl={ctrl} m={p.metrics} tape={p.tape} t0={p.t0} mode={h.mode} filter={st.filter} highlight={st.highlight} onShare={() => {}} compact solUsd={p.usdPerSol} />
       </aside>
     </div>
   );

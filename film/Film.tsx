@@ -90,7 +90,7 @@ function Dots({ opacity = 1 }: { opacity?: number }) {
 function Zero({ t, split, spin = 0, scale = 1, y = 0 }: { t: number; split: number; spin?: number; scale?: number; y?: number }) {
   return (
     <ThreeCanvas width={W} height={H} camera={{ position: [0, 0, 6], fov: 30 }} gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05, preserveDrawingBuffer: true }}>
-      <ZeroRig t={t} split={split} spin={spin} scale={scale} position={[0, y, 0]} glow={1.1} />
+      <ZeroRig t={t} split={split} spin={spin} scale={scale} position={[0, y, 0]} />
     </ThreeCanvas>
   );
 }
@@ -317,9 +317,9 @@ export function Film() {
 export function PosterStill({ w, h, title = false }: { w: number; h: number; title?: boolean }) {
   useFonts();
   return (
-    <AbsoluteFill style={{ background: C.bg }}>
+    <AbsoluteFill style={{ background: 'radial-gradient(ellipse 45% 55% at 72% 62%, rgba(255,104,73,0.30), transparent 70%), radial-gradient(ellipse 60% 70% at 70% 50%, #3a1424 0%, #1D0C19 72%)' }}>
       <ThreeCanvas width={w} height={h} camera={{ position: [0, 0, 6], fov: 30 }} gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05, preserveDrawingBuffer: true }}>
-        <ZeroRig t={6} split={0} position={title ? [1.75, -0.05, 0] : [1.35, 0.05, 0]} scale={title ? 0.66 : 1} glow={1.1} />
+        <ZeroRig t={6} split={0} position={title ? [1.75, -0.05, 0] : [1.35, 0.05, 0]} scale={title ? 0.66 : 1} />
       </ThreeCanvas>
       {title && (
         <div style={{ position: 'absolute', left: 80, top: h / 2 - 150, width: w * 0.5 }}>

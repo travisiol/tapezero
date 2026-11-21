@@ -19,3 +19,17 @@ export const FILM_CUES = {
   finalImpact: 58 * B, // 33.14 s
   end: 35,
 };
+
+/** 10-second trailer (homepage, inline). Same tempo; every visual beat lands on a beat. */
+export const TRAILER_CUES = {
+  playheadOn: 0.3,
+  splitStart: 0.45,
+  align: 3 * B, // 1.71 s — the doubled edge snaps back on the first impact
+  live: 3 * B + 0.1, // terminal
+  rewind: 8 * B, // 4.57 s
+  inspect: 11 * B, // 6.29 s — the candle opens, bass drops
+  pings: [12 * B, 12.5 * B, 13 * B], // three biggest buys light up
+  outro: 15 * B + 0.1, // 8.67 s — back to the zero
+  final: 16 * B, // 9.14 s
+  end: 10,
+};

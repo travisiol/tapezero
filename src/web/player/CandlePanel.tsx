@@ -6,6 +6,7 @@ import type { DataMode, FundingEvidence, Swap } from '../../core/types.ts';
 import { SOL_EXPLORER_ADDR, SOL_EXPLORER_TX } from '../../core/types.ts';
 import { fmtClock, fmtDur, fmtPct, fmtPrice, fmtShare, fmtSol, fmtTplus, fmtUsd, short } from '../../core/format.ts';
 import { fetchFunding } from '../data/sources.ts';
+import { DEFINITIONS, summarize, usd } from '../../core/summary.ts';
 
 interface Props {
   ctrl: PlayerController;
@@ -18,6 +19,7 @@ interface Props {
   onShare: () => void;
   onFunding?: (ev: FundingEvidence[]) => void;
   compact?: boolean;
+  solUsd?: number | null;
 }
 
 export function filterIds(m: WindowMetrics, f: MetricFilter | null): Set<string> | null {
@@ -38,7 +40,7 @@ export function filterIds(m: WindowMetrics, f: MetricFilter | null): Set<string>
 }
 
 export function SideTag({ side }: { side: 'buy' | 'sell' }) {
-  return <span className={`side side-${side}`}>{side === 'buy' ? '▲ BUY' : '▽ SELL'}</span>;
+  return <span className={`side side-${side}`}>{side === 'buy' ? '▲ Buy' : '▽ Sell'}</span>;
 }
 
 export function TxLink({ sig, mode }: { sig: string; mode: DataMode }) {
@@ -50,19 +52,20 @@ export function TxLink({ sig, mode }: { sig: string; mode: DataMode }) {
   );
 }
 
-function Metric({ id, label, value, sub, filter, onPick, warn }: { id: MetricFilter; label: string; value: string; sub?: string; filter: MetricFilter | null; onPick: (f: MetricFilter | null) => void; warn?: string }) {
+function Metric({ id, label, value, sub, def, filter, onPick, warn }: { id: MetricFilter; label: string; value: string; sub?: string; def?: string; filter: MetricFilter | null; onPick: (f: MetricFilter | null) => void; warn?: string }) {
   const on = filter === id;
   return (
     <button type="button" className={`metric${on ? ' on' : ''}`} aria-pressed={on} onClick={() => onPick(on ? null : id)} title={`Highlight the swaps behind "${label}"`}>
       <span className="metric-label">{label}</span>
       <span className="metric-value mono">{value}</span>
       {sub && <span className="metric-sub mono">{sub}</span>}
+      {def && <span className="metric-def">{def}</span>}
       {warn && <span className="metric-warn">{warn}</span>}
     </button>
   );
 }
 
-export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShare, onFunding, compact }: Props) {
+export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShare, onFunding, compact, solUsd }: Props) {
   const [raw, setRaw] = useState(false);
   const [funding, setFunding] = useState<{ busy: boolean; note: string | null }>({ busy: false, note: null });
   const pick = (f: MetricFilter | null) => ctrl.set({ filter: f });
@@ -71,8 +74,8 @@ export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShar
   if (!m) {
     return (
       <div className="panel-body">
-        <p className="eyebrow">Tape</p>
-        <p className="hint">Drag across the chart, click a candle, or press <kbd>Shift</kbd>+<kbd>←</kbd>/<kbd>→</kbd> to open a window.</p>
+        <p className="panel-kicker">Latest swaps</p>
+        <p className="hint">Click a candle on the chart (or drag across it) to see what moved the price in that moment.</p>
         <SwapList swaps={tape.slice(-60).reverse()} t0={t0} mode={mode} ctrl={ctrl} highlight={highlight} />
       </div>
     );
@@ -99,56 +102,95 @@ export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShar
     setFunding({ busy: false, note: `${found.length} funding source(s) found, ${unresolved} unresolved (history too long, rate limit or no inbound SOL transfer).` });
   };
 
+  const sentences = summarize(m, solUsd ?? null);
+  const inUsd = (x: number) => (solUsd ? usd(x * solUsd) : '');
+  const tile = (id: MetricFilter | null, label: string, value: string, sub: string, def: string, tone?: string) => (
+    <button type="button" className={`key${filter === id && id ? ' on' : ''}`} aria-pressed={!!id && filter === id} onClick={() => id && pick(filter === id ? null : id)} title={def}>
+      <span className="key-label">{label}</span>
+      <span className={`key-value mono ${tone ?? ''}`}>{value}</span>
+      <span className="key-sub">{sub}</span>
+    </button>
+  );
+
   return (
     <div className="panel-body">
       <div className="candle-head">
         <div>
-          <p className="eyebrow">Open the candle</p>
-          <h3 className="mono win">
-            {fmtTplus(m.a, t0)} → {fmtTplus(m.b, t0)} <span className="muted">· {fmtDur(dur)}</span>
+          <p className="panel-kicker">Selected range</p>
+          <h3 className="win">
+            {fmtClock(m.a / 1000)} → {fmtClock(m.b / 1000)} <span className="muted">UTC · {fmtDur(dur)}</span>
           </h3>
-          <p className="muted mono small">
-            {fmtClock(m.a / 1000)}–{fmtClock(m.b / 1000)} UTC · chain time, 1 s resolution
+          <p className="muted small mono">
+            {fmtTplus(m.a, t0)} → {fmtTplus(m.b, t0)} after the first swap shown
           </p>
         </div>
         <div className="row gap-s">
-          <button type="button" className="btn btn-ghost btn-s" onClick={onShare}>Share range</button>
-          <button type="button" className="btn btn-ghost btn-s" onClick={() => ctrl.clearSelection()} aria-label="Close window (Esc)">✕</button>
+          {!compact && (
+            <button type="button" className="btn btn-ghost btn-s" onClick={onShare}>
+              Share
+            </button>
+          )}
+          <button type="button" className="btn btn-ghost btn-s" onClick={() => ctrl.clearSelection()} aria-label="Close (Esc)">
+            ✕
+          </button>
         </div>
       </div>
 
-      {m.gapsInWindow.length > 0 && <p className="notice">⚠ {m.gapsInWindow.length} collector gap(s) overlap this window — swaps inside them were not observed.</p>}
-      {m.truncationNote && <p className="notice">{m.truncationNote}</p>}
+      {m.gapsInWindow.length > 0 && <p className="notice">Part of this range was not recorded (collector outage). Numbers only cover what was observed.</p>}
 
-      <div className="price-row">
-        <div>
-          <span className="metric-label">Price start → end</span>
-          <span className="mono big">
-            {fmtPrice(m.priceStart)} → {fmtPrice(m.priceEnd)} <span className={m.changePct != null && m.changePct >= 0 ? 'up' : 'down'}>{fmtPct(m.changePct)}</span>
-          </span>
-          <span className="metric-sub">SOL per token, from curve/pool reserves after each swap</span>
-        </div>
-        <div title={m.fdvEnd.method}>
-          <span className="metric-label">FDV start → end</span>
-          <span className="mono big">
-            {fmtUsd(m.fdvStart.usd)} → {fmtUsd(m.fdvEnd.usd)}
-          </span>
-          <span className="metric-sub">{m.fdvEnd.usd == null ? m.fdvEnd.method : 'fully diluted · hover for method'}</span>
-        </div>
+      <ul className="story" aria-label="What happened">
+        {sentences.map((x, i) => (
+          <li key={i}>
+            <button
+              type="button"
+              className={`story-line ${x.tone ?? ''}${x.filter && filter === x.filter ? ' on' : ''}`}
+              onClick={() => x.filter && pick(filter === x.filter ? null : x.filter)}
+              disabled={!x.filter}
+              title={x.filter ? 'Highlight these swaps on the chart' : undefined}
+            >
+              {x.text}
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="keys">
+        {tile(null, 'Price', fmtPct(m.changePct, 0), m.fdvEnd.usd != null ? `market cap ${fmtUsd(m.fdvEnd.usd)}` : 'no USD reference', DEFINITIONS.mcap, m.changePct != null && m.changePct >= 0 ? 'up' : 'down')}
+        {tile('buys', 'Bought', `${fmtSol(m.buySol)} SOL`, inUsd(m.buySol) ? `≈ ${inUsd(m.buySol)} · sold ${fmtSol(m.sellSol)}` : `sold ${fmtSol(m.sellSol)} SOL`, DEFINITIONS.bought)}
+        {tile('firstTime', 'Buyers', String(m.distinctBuyers.length), `wallets · ${m.count} swaps`, DEFINITIONS.buyers)}
+        {tile('largestBuy', 'Biggest buy', fmtShare(m.largestBuyShare.value), `of all buying (${fmtSol(m.largestBuyShare.numerator)} SOL)`, DEFINITIONS.largestBuy)}
       </div>
 
-      <div className="metrics">
-        <Metric id="buys" label="Swaps" value={String(m.count)} sub={`▲ ${m.buys.length} · ▽ ${m.sells.length}`} filter={filter} onPick={pick} />
-        <Metric id="buys" label="Bought" value={`${fmtSol(m.buySol)} SOL`} sub={`net ${m.netSol >= 0 ? '+' : ''}${fmtSol(m.netSol)} SOL`} filter={filter} onPick={pick} />
-        <Metric id="sells" label="Sold" value={`${fmtSol(m.sellSol)} SOL`} sub={`${m.sells.length} sells`} filter={filter} onPick={pick} />
-        <Metric id="largest" label="Largest swap" value={m.largest ? `${fmtSol(m.largest.sol)} SOL` : '—'} sub={m.largest ? `${m.largest.side.toUpperCase()} · ${short(m.largest.wallet)}` : undefined} filter={filter} onPick={pick} />
-        <Metric id="firstTime" label="Distinct buyers" value={String(m.distinctBuyers.length)} sub={`${m.firstTimeBuyers.length} first-time buyers`} filter={filter} onPick={pick} warn={trunc} />
-        <Metric id="largestBuy" label="Largest buy share" value={fmtShare(m.largestBuyShare.value)} sub={`${fmtSol(m.largestBuyShare.numerator)} of ${fmtSol(m.largestBuyShare.denominator)} SOL bought`} filter={filter} onPick={pick} />
-        <Metric id="top3" label={`Top ${m.top3.length || 3} wallets share`} value={fmtShare(m.top3Share.value)} sub={`${fmtSol(m.top3Share.numerator)} of ${fmtSol(m.top3Share.denominator)} SOL bought`} filter={filter} onPick={pick} />
-        <Metric id="earlySellers" label="Early buyers selling" value={String(m.earlySellers.length)} sub={`of first ${EARLY_BUYERS_N} observed buyers`} filter={filter} onPick={pick} warn={trunc} />
-        <Metric id="clusters" label="Funding links" value={String(m.clusters.length)} sub={m.clusters.length ? 'shared funder (hint)' : 'no evidence loaded'} filter={filter} onPick={pick} />
-      </div>
-      <p className="muted small">Denominator for shares: all buy volume inside this window ({fmtSol(m.buySol)} SOL, {m.buys.length} buys). Addresses are counted as addresses — not as independent traders.</p>
+      <details className="more">
+        <summary>All numbers and how they are computed</summary>
+        <div className="price-row">
+          <div>
+            <span className="metric-label">Price per token (SOL)</span>
+            <span className="mono big">
+              {fmtPrice(m.priceStart)} → {fmtPrice(m.priceEnd)}
+            </span>
+            <span className="metric-sub">{DEFINITIONS.price}</span>
+          </div>
+          <div>
+            <span className="metric-label">Market cap (fully diluted)</span>
+            <span className="mono big">
+              {fmtUsd(m.fdvStart.usd)} → {fmtUsd(m.fdvEnd.usd)}
+            </span>
+            <span className="metric-sub">{m.fdvEnd.method}</span>
+          </div>
+        </div>
+        <div className="metrics">
+          <Metric id="buys" label="Swaps" value={String(m.count)} sub={`${m.buys.length} buys · ${m.sells.length} sells`} def={DEFINITIONS.swaps} filter={filter} onPick={pick} />
+          <Metric id="buys" label="Bought" value={`${fmtSol(m.buySol)} SOL`} sub={`net ${m.netSol >= 0 ? '+' : ''}${fmtSol(m.netSol)} SOL`} def={DEFINITIONS.bought} filter={filter} onPick={pick} />
+          <Metric id="sells" label="Sold" value={`${fmtSol(m.sellSol)} SOL`} sub={`${m.sells.length} sells`} def={DEFINITIONS.sold} filter={filter} onPick={pick} />
+          <Metric id="largest" label="Largest swap" value={m.largest ? `${fmtSol(m.largest.sol)} SOL` : '—'} sub={m.largest ? `${m.largest.side} · ${short(m.largest.wallet)}` : undefined} def={DEFINITIONS.largest} filter={filter} onPick={pick} />
+          <Metric id="firstTime" label="Buyers" value={String(m.distinctBuyers.length)} sub={`${m.firstTimeBuyers.length} first-time`} def={DEFINITIONS.buyers} filter={filter} onPick={pick} warn={trunc} />
+          <Metric id="largestBuy" label="Biggest buy share" value={fmtShare(m.largestBuyShare.value)} sub={`${fmtSol(m.largestBuyShare.numerator)} / ${fmtSol(m.largestBuyShare.denominator)} SOL`} def={DEFINITIONS.largestBuy} filter={filter} onPick={pick} />
+          <Metric id="top3" label="Top 3 buyers share" value={fmtShare(m.top3Share.value)} sub={`${fmtSol(m.top3Share.numerator)} / ${fmtSol(m.top3Share.denominator)} SOL`} def={DEFINITIONS.top3} filter={filter} onPick={pick} />
+          <Metric id="earlySellers" label="Early buyers selling" value={String(m.earlySellers.length)} sub={`of the first ${EARLY_BUYERS_N} buyers`} def={DEFINITIONS.early} filter={filter} onPick={pick} warn={trunc} />
+          <Metric id="clusters" label="Shared funder" value={String(m.clusters.length)} sub={m.clusters.length ? 'hint' : 'none loaded'} def={DEFINITIONS.funding} filter={filter} onPick={pick} />
+        </div>
+      </details>
 
       {m.earlySellers.length > 0 && !compact && (
         <section className="sub">

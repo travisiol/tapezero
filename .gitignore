@@ -4,3 +4,5 @@ data/*.db*
 .env
 out
 *.log
+data/*.cache.json
+.claude/

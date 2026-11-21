@@ -334,6 +334,7 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
           </div>
         </div>
         {outOfRange && <p className="notice">The shared range starts before the first event available for this token. Data outside the 48 h retention (or before the collector started) cannot be replayed.</p>}
+        {h.bundle.coverage.retentionHours === 0 && <p className="notice small">Reference replay: real Solana mainnet swaps rebuilt from the chain, not a live feed. Context: GTA VI trailer, 15 Oct 2026.</p>}
         {h.bundle.gaps.length > 0 && <p className="notice small">⚠ {h.bundle.gaps.length} collector gap(s) on this token — shown as hatched “NO DATA” ranges.</p>}
         <Chart
           ctrl={ctrl}
@@ -348,7 +349,7 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
         <Overview ctrl={ctrl} gaps={h.bundle.gaps} />
         <Transport ctrl={ctrl} h={h} t0={p.t0} onShare={share} />
         {msg && <p className="toast" role="status">{msg}</p>}
-        <p className="keys small muted">
+        <p className="kbd-hint small muted">
           <kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> swap by swap · <kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> select · drag to select · click a candle to open it · <kbd>Shift</kbd>+drag to pan · wheel to zoom · <kbd>L</kbd> live · <kbd>Esc</kbd> clear
         </p>
         <div className="row gap-s pad-t">
@@ -361,7 +362,7 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
         <button type="button" className="sheet-handle" onClick={() => setSheet((v) => !v)} aria-expanded={sheet}>
           {metrics ? `Window · ${metrics.count} swaps` : `Tape · ${h.series.size} swaps`}
         </button>
-        <MemoPanel ctrl={ctrl} m={metrics} tape={p.tape} t0={p.t0} mode={h.mode} filter={st.filter} highlight={st.highlight} onShare={share} onFunding={p.addFunding} />
+        <MemoPanel ctrl={ctrl} m={metrics} tape={p.tape} t0={p.t0} mode={h.mode} filter={st.filter} highlight={st.highlight} onShare={share} onFunding={p.addFunding} solUsd={p.usdPerSol} />
       </aside>
     </>
   );

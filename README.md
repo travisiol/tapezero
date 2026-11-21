@@ -110,3 +110,22 @@ same Three.js scene as the hero. Picture and sound share `film/cues.ts` (105 BPM
 On Windows, if the project path is very long, Chrome cannot start (MAX_PATH). Copy
 `node_modules/.remotion/chrome-headless-shell/win64/chrome-headless-shell-win64/` to a short path and set
 `REMOTION_BROWSER_EXECUTABLE`.
+
+## Reference replay — Dacity Coin, 15 Oct 2026 (real data)
+
+The homepage replay is not synthetic. `scripts/fetch-reference.ts` rebuilds it from Solana mainnet:
+
+- mint `nxPqZ4F7ux8Vph5NFu25rEP6Kx9Gr1U6Fmj36Rjpump` (Dacity Coin, created on pump.fun on 11 Oct 2026, migrated to PumpSwap),
+  pool `G2UuRbmVDzDFP4qyoBJrSKBXSi7d6V4bPP9tHPs36y4b`;
+- every signature of the pool in the window (`getSignaturesForAddress`), every successful transaction (`getTransaction`),
+  BuyEvent/SellEvent decoded from the logs with the same decoder as the live worker;
+- USD from Coinbase SOL-USD one-minute closes; the bundle carries its provenance (window, counts, failed transactions).
+
+Output: `public/data/dacity-gta6.json`. In the terminal it opens at `/app/live/token/nxPqZ4F7ux8Vph5NFu25rEP6Kx9Gr1U6Fmj36Rjpump`
+as a replay (never live). The public RPC rate-limits `getTransaction` heavily (~30/min observed), so the window is short;
+widen it with `FETCH_FROM` / `FETCH_TO` (unix seconds) and a dedicated RPC.
+
+## Trailer
+
+`film/Trailer.tsx` — 10 s, plays inline in the homepage hero (muted autoplay, loop, sound on request, still frame under
+reduced motion). Real terminal components on the Dacity replay. `npm run trailer:render`.

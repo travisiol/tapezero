@@ -168,6 +168,7 @@ async function getJSON<T>(url: string): Promise<T> {
 }
 
 async function openLive(mint: string): Promise<LaunchHandle> {
+  if (mint === REFERENCE.mint) return referenceHandle();
   const hit = liveHandles.get(mint);
   if (hit) {
     hit.refs++;
@@ -346,4 +347,53 @@ export function ensureDemoClock(mint: string, tlMs: number) {
   const clock = demoClockFor(b);
   const need = tlMs + 3000 - clock();
   if (need > 0) demoSessionStart -= need;
+}
+
+// ───────────────────────── reference replays (real, archived, static) ─────────────────────────
+
+export interface Provenance {
+  mint: string;
+  pool: string;
+  windowUtc: [string, string];
+  rpc: string;
+  method: string;
+  signatures: number;
+  failedTransactions: number;
+  unavailable: number;
+  swaps: number;
+  builtAt: string;
+  context: string;
+}
+
+export const REFERENCE = {
+  key: 'dacity-gta6',
+  mint: 'nxPqZ4F7ux8Vph5NFu25rEP6Kx9Gr1U6Fmj36Rjpump',
+  url: '/data/dacity-gta6.json',
+};
+
+const refCache = new Map<string, Promise<LaunchHandle & { provenance: Provenance }>>();
+
+/** Real on-chain swaps rebuilt from mainnet (scripts/fetch-reference.ts). A replay: never live, explorer links on. */
+export function referenceHandle(url = REFERENCE.url): Promise<LaunchHandle & { provenance: Provenance }> {
+  let p = refCache.get(url);
+  if (!p) {
+    p = getJSON<LaunchBundle & { provenance: Provenance }>(url).then((bundle) => {
+      const series = new SwapSeries(bundle.launch.mint);
+      series.add(bundle.legs, 0);
+      return {
+        mode: 'live' as const,
+        mint: bundle.launch.mint,
+        bundle,
+        series,
+        live: false,
+        provenance: bundle.provenance,
+        status: { state: 'replay' as const, reconnects: 0, lastMsgAt: 0, collector: null, resumedFrom: null, duplicatesDropped: 0, displayLag: { collectorToScreen: null, chainToScreen: null } },
+        subscribe: () => () => {},
+        release() {},
+        chainNow: () => (series.last?.chainTime ?? 0) * 1000,
+      };
+    });
+    refCache.set(url, p);
+  }
+  return p;
 }

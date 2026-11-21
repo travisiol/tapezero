@@ -22,7 +22,7 @@ function roundedRectPoints(w: number, h: number, r: number, seg = 18): THREE.Vec
   return pts;
 }
 
-const SLANT = 0.2; // italic shear, same direction as the logo
+export const SLANT = 0.2; // italic shear, same direction as the logo
 
 function shear(pts: THREE.Vector2[]) {
   return pts.map((p) => new THREE.Vector2(p.x + p.y * SLANT, p.y));
