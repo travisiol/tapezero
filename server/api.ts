@@ -199,6 +199,39 @@ function serveStatic(req: IncomingMessage, res: ServerResponse, path: string) {
   createReadStream(p).pipe(res);
 }
 
+// ───────────── coin logos ─────────────
+const logos = new Map<string, { image: string | null; at: number }>();
+const publicHttps = (u: string) => {
+  try {
+    const x = new URL(u.startsWith('ipfs://') ? 'https://ipfs.io/ipfs/' + u.slice(7) : u);
+    if (x.protocol !== 'https:') return null;
+    if (/^(localhost|\d+\.\d+\.\d+\.\d+|\[.*\])$/i.test(x.hostname) || !x.hostname.includes('.')) return null;
+    return x.toString();
+  } catch {
+    return null;
+  }
+};
+async function logo(mint: string): Promise<string | null> {
+  const hit = logos.get(mint);
+  if (hit && (hit.image || Date.now() - hit.at < 10 * 60_000)) return hit.image;
+  const r = db.prepare('SELECT uri FROM launches WHERE mint = ?').get(mint) as { uri?: string } | undefined;
+  let image: string | null = null;
+  const uri = r?.uri ? publicHttps(r.uri) : null;
+  if (uri) {
+    try {
+      const res = await fetch(uri, { signal: AbortSignal.timeout(6000), redirect: 'follow' });
+      const text = res.ok ? (await res.text()).slice(0, 100_000) : '';
+      const j = text ? JSON.parse(text) : null;
+      image = typeof j?.image === 'string' ? publicHttps(j.image) : null;
+    } catch {
+      image = null;
+    }
+  }
+  if (logos.size > 5000) logos.clear();
+  logos.set(mint, { image, at: Date.now() });
+  return image;
+}
+
 // ───────────── router ─────────────
 createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://x');
@@ -227,6 +260,11 @@ createServer(async (req, res) => {
       return b ? json(res, 200, b) : json(res, 404, { error: 'not in archive (48 h retention, or never observed)' });
     }
     if (p === '/api/stream') return stream(req, res, url);
+    const lg = p.match(/^\/api\/logo\/([1-9A-HJ-NP-Za-km-z]{32,44})$/);
+    if (lg) {
+      if (limited(req, 'logo', 240, 60_000)) return json(res, 429, { image: null });
+      return json(res, 200, { image: await logo(lg[1]) });
+    }
     const f = p.match(/^\/api\/funding\/([1-9A-HJ-NP-Za-km-z]{32,44})$/);
     if (f) {
       if (limited(req, 'funding', 30, 60_000)) return json(res, 429, { status: 'rate-limited' });

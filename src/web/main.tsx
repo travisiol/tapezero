@@ -6,6 +6,8 @@ import '@fontsource/space-grotesk/700.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import './styles.css';
+import './terminal.css';
+import './motion.css';
 import { useLocation } from './router.tsx';
 import { Landing } from './landing/Landing.tsx';
 

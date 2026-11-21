@@ -1,6 +1,6 @@
 // TAPEZERO trailer — 10 s, 1920×1080. Built to read at small sizes (homepage hero, X feed, muted):
 // one idea per shot, big type, the real chart only. Data: real DacityCoin (DCTY) trades, 18 Nov 2026.
-import { AbsoluteFill, Audio, Sequence, staticFile, useCurrentFrame, delayRender, continueRender, interpolate, Easing } from 'remotion';
+import { AbsoluteFill, Audio, Img, Sequence, staticFile, useCurrentFrame, delayRender, continueRender, interpolate, Easing } from 'remotion';
 import { useEffect, useMemo, useState } from 'react';
 import '@fontsource/space-grotesk/400.css';
 import '@fontsource/space-grotesk/500.css';
@@ -114,7 +114,7 @@ function Market({ t, b }: { t: number; b: LaunchBundle }) {
     <AbsoluteFill>
       {/* label + live market cap */}
       <div style={{ position: 'absolute', left: 110, top: 64 }}>
-        <div style={{ font: '500 30px IBM Plex Mono', color: C.peach, letterSpacing: '0.04em' }}>{REFERENCE.name.toUpperCase()} · {REFERENCE.date.toUpperCase()} · {fmtClock(playhead / 1000)} UTC</div>
+        <div style={{ font: '500 30px IBM Plex Mono', color: C.peach, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 16 }}><Img src={staticFile('tokens/dcty.webp')} style={{ width: 54, height: 54, borderRadius: 14, boxShadow: '0 0 0 2px rgba(255,179,148,0.3)' }} />{REFERENCE.name.toUpperCase()} · {REFERENCE.date.toUpperCase()} · {fmtClock(playhead / 1000)} UTC</div>
         <div style={{ ...big, fontSize: 132, lineHeight: 1.02, marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>
           {fmtMoney(mcap)} <span style={{ fontSize: 46, color: C.text2, letterSpacing: 0 }}>market cap</span>
         </div>

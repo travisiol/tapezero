@@ -18,6 +18,7 @@ export interface PlayerState {
   bucket: number | null; // candle size in ms; null = automatic from the zoom level
   yRange: [number, number] | null; // manual price range (SOL per token); null = auto-fit
   yMode: 'mcap' | 'price';
+  wallet: string | null; // wallet opened in the panel; its trades are marked on the chart
 }
 
 /**
@@ -51,6 +52,7 @@ export class PlayerController {
       bucket: null,
       yRange: null,
       yMode: 'mcap',
+      wallet: null,
       ...init,
     };
   }

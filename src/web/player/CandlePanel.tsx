@@ -21,6 +21,7 @@ interface Props {
   onFunding?: (ev: FundingEvidence[]) => void;
   compact?: boolean;
   solUsd?: number | null;
+  supply?: number;
 }
 
 export function filterIds(m: WindowMetrics, f: MetricFilter | null): Set<string> | null {
@@ -44,11 +45,11 @@ export function SideTag({ side }: { side: 'buy' | 'sell' }) {
   return <span className={`side side-${side}`}>{side === 'buy' ? '▲ Buy' : '▽ Sell'}</span>;
 }
 
-export function TxLink({ sig, mode }: { sig: string; mode: DataMode }) {
+export function TxLink({ sig, mode, icon }: { sig: string; mode: DataMode; icon?: boolean }) {
   if (mode === 'demo') return <span className="muted" title="Demo data — synthetic signature, no on-chain proof">demo tx</span>;
   return (
     <a className="txlink" href={SOL_EXPLORER_TX(sig)} target="_blank" rel="noreferrer noopener" title={`Verify ${sig} on Solscan`} aria-label={`Verify transaction ${short(sig, 6)} on Solscan`}>
-      Solscan ↗
+      {icon ? "↗" : "Solscan ↗"}
     </a>
   );
 }
@@ -66,7 +67,7 @@ function Metric({ id, label, value, sub, def, filter, onPick, warn }: { id: Metr
   );
 }
 
-export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShare, onFunding, compact, solUsd }: Props) {
+export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShare, onFunding, compact, solUsd, supply }: Props) {
   const [raw, setRaw] = useState(false);
   const [funding, setFunding] = useState<{ busy: boolean; note: string | null }>({ busy: false, note: null });
   const pick = (f: MetricFilter | null) => ctrl.set({ filter: f });
@@ -77,7 +78,7 @@ export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShar
       <div className="panel-body">
         <p className="panel-kicker">Latest swaps</p>
         <p className="hint">Click a candle on the chart (or drag across it) to see what moved the price in that moment.</p>
-        <SwapList swaps={tape.slice(-60).reverse()} t0={t0} mode={mode} ctrl={ctrl} highlight={highlight} solUsd={solUsd} />
+        <SwapList swaps={tape.slice(-60).reverse()} t0={t0} mode={mode} ctrl={ctrl} highlight={highlight} solUsd={solUsd} supply={supply} />
       </div>
     );
   }
@@ -244,7 +245,7 @@ export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShar
             <input type="checkbox" checked={raw} onChange={(e) => setRaw(e.target.checked)} /> raw events
           </label>
         </div>
-        {raw ? <RawList swaps={m.swaps} m={m} /> : <SwapList swaps={shown} t0={t0} mode={mode} ctrl={ctrl} highlight={highlight} m={m} solUsd={solUsd} />}
+        {raw ? <RawList swaps={m.swaps} m={m} /> : <SwapList swaps={shown} t0={t0} mode={mode} ctrl={ctrl} highlight={highlight} m={m} solUsd={solUsd} supply={supply} />}
       </section>
     </div>
   );
@@ -259,35 +260,38 @@ function WalletLink({ w, mode }: { w: string; mode: DataMode }) {
   );
 }
 
-export function SwapList({ swaps, t0, mode, ctrl, highlight, m, solUsd }: { swaps: Swap[]; t0: number; mode: DataMode; ctrl: PlayerController; highlight: string | null; m?: WindowMetrics; solUsd?: number | null }) {
+export function SwapList({ swaps, t0, mode, ctrl, highlight, m, solUsd, supply }: { swaps: Swap[]; t0: number; mode: DataMode; ctrl: PlayerController; highlight: string | null; m?: WindowMetrics; solUsd?: number | null; supply?: number }) {
+  const mc = (p: number) => (solUsd && supply ? fmtUsd(p * supply * solUsd) : fmtPrice(p));
   void t0;
   const first = new Set(m?.firstTimeBuyerSwaps.map((s) => s.id));
   const top3 = new Set(m?.top3.map((w) => w.wallet));
   const largestId = m?.largest?.id;
   return (
-    <div className="trades" role="table" aria-label="Trades">
+    <div className="trades with-mc" role="table" aria-label="Trades">
       <div className="trades-head" role="row">
         <span role="columnheader">Time</span>
         <span role="columnheader">Side</span>
         <span role="columnheader" className="r">Amount</span>
+        <span role="columnheader" className="r">MC</span>
         <span role="columnheader">Wallet</span>
         <span role="columnheader" className="sr-only">Proof</span>
       </div>
       {swaps.slice(0, 400).map((s) => {
-        const tags = [s.id === largestId && 'largest', first.has(s.id) && 'new buyer', top3.has(s.wallet) && s.side === 'buy' && 'top 3'].filter(Boolean) as string[];
+        const tags = [s.id === largestId && '🐋 biggest', first.has(s.id) && '✨ new', top3.has(s.wallet) && s.side === 'buy' && '🏆 top 3'].filter(Boolean) as string[];
         return (
           <div key={s.id} role="row" className={`trade${s.id === highlight ? ' hl' : ''}`} onClick={() => ctrl.highlightSwap(s.id)} title={`${fmtSol(s.sol)} SOL · slot ${s.slot} · click to show it on the chart`}>
             <span className="t-time mono">{fmtClock(s.chainTime)}</span>
             <span className={`t-side ${s.side}`}>{s.side === 'buy' ? '▲ Buy' : '▽ Sell'}</span>
-            <span className="t-amt">{money(s.sol, solUsd ?? null)}</span>
+            <span className={`t-amt${solUsd && s.sol * solUsd >= 1000 ? " big" : ""}`}>{money(s.sol, solUsd ?? null)}</span>
+            <span className="t-mc">{mc(s.priceSol)}</span>
             <span className="t-wallet">
-              <span className="mono">{short(s.wallet)}</span>
+              <button type="button" className="wlink mono" onClick={(e) => (e.stopPropagation(), ctrl.set({ wallet: s.wallet }))} title="Open this wallet">{short(s.wallet)}</button>
               {tags.map((t) => (
-                <span key={t} className={`t-tag${t === 'largest' ? ' a' : ''}`}>{t}</span>
+                <span key={t} className={`t-tag${t.includes('biggest') ? ' a' : ''}`}>{t}</span>
               ))}
             </span>
             <span className="t-proof" onClick={(e) => e.stopPropagation()}>
-              <TxLink sig={s.signature} mode={mode} />
+              <TxLink sig={s.signature} mode={mode} icon />
             </span>
           </div>
         );

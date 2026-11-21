@@ -1,7 +1,7 @@
 // TAPEZERO — X launch post. 1080×1350 (4:5), 31 s, captions burned in (X autoplays muted).
 // Story: problem first, then the product, one plain sentence per screen.
 // Numbers come from the real DacityCoin (DCTY) trades of 18 Nov 2026; launch names are real pump.fun launches seen by the collector.
-import { AbsoluteFill, Audio, staticFile, useCurrentFrame, delayRender, continueRender, interpolate, Easing } from 'remotion';
+import { AbsoluteFill, Audio, Img, staticFile, useCurrentFrame, delayRender, continueRender, interpolate, Easing } from 'remotion';
 import { useEffect, useMemo, useState } from 'react';
 import '@fontsource/space-grotesk/400.css';
 import '@fontsource/space-grotesk/500.css';
@@ -125,7 +125,7 @@ function Explode({ t, d }: { t: number; d: Data }) {
         <Dim>{d.seconds < 120 ? "in seconds." : "in minutes."}</Dim>
       </Headline>
       <div style={{ position: 'absolute', left: 0, right: 0, top: 520, textAlign: 'center' }}>
-        <div style={mono(32)}>{REFERENCE.name} · market cap</div>
+        <div style={{ ...mono(32), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18 }}><Img src={staticFile('tokens/dcty.webp')} style={{ width: 72, height: 72, borderRadius: 19, boxShadow: '0 0 0 2px rgba(255,179,148,0.3)' }} />{REFERENCE.name} · market cap</div>
         <div style={{ ...big, fontSize: 210, color: k > 0.98 ? C.buy : C.text, fontVariantNumeric: 'tabular-nums', marginTop: 10 }}>{usd(v)}</div>
         <div style={{ ...big, fontSize: 52, color: C.text2, marginTop: 18, opacity: out(Q.explode + 2.2, Q.explode + 2.7, t) }}>
           from {usd(d.mcStart)} in {d.seconds < 120 ? `${d.seconds} seconds` : `${Math.round(d.seconds / 60)} minutes`}
@@ -233,8 +233,8 @@ function Inspect({ t, d }: { t: number; d: Data }) {
         <br />
         <Dim>See who bought it.</Dim>
       </Headline>
-      <div style={{ ...mono(30, C.text2), position: 'absolute', left: 80, top: 470, opacity: out(Q.inspect + 0.3, Q.inspect + 0.6, t) }}>
-        {REFERENCE.name} · {fmtClock(d.ca / 1000)} → {fmtClock(d.cb / 1000)} UTC
+      <div style={{ ...mono(30, C.text2), position: 'absolute', left: 80, top: 470, opacity: out(Q.inspect + 0.3, Q.inspect + 0.6, t), display: 'flex', alignItems: 'center', gap: 14 }}>
+        <Img src={staticFile('tokens/dcty.webp')} style={{ width: 48, height: 48, borderRadius: 12, boxShadow: '0 0 0 2px rgba(255,179,148,0.3)' }} />{REFERENCE.name} · {fmtClock(d.ca / 1000)} → {fmtClock(d.cb / 1000)} UTC
       </div>
       <div style={{ position: 'absolute', left: 80, right: 80, top: 560, borderLeft: `8px solid ${C.accent}`, paddingLeft: 44 }}>
         {lines.map((l, i) => {

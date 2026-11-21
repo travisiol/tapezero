@@ -13,6 +13,8 @@ import { Compare } from './Compare.tsx';
 import { Blind } from './Blind.tsx';
 import { Wordmark } from '../landing/Brand.tsx';
 import { busiestCandle } from '../landing/LandingPlayer.tsx';
+import { PulseStrip, TokenHeader, TradersPanel, WalletPanel, useBook } from './TraderViews.tsx';
+import { TokenLogo } from '../TokenLogo.tsx';
 
 const MemoPanel = memo(CandlePanel);
 
@@ -213,6 +215,7 @@ function FeedRow({ r, mode, on, onPick }: { r: LaunchRow; mode: DataMode; on: bo
     <li>
       <Link to={`/app/${mode}/token/${r.launch.mint}`} className={`feed-row${on ? ' on' : ''}`} aria-current={on ? 'true' : undefined} onClick={onPick}>
         <span className="fr-top">
+          <TokenLogo mint={r.launch.mint} uri={r.launch.uri} label={r.launch.symbol || r.launch.name} size={22} className="fr-logo" />
           <span className="fr-sym">{r.launch.symbol || short(r.launch.mint)}</span>
           {r.active && <span className="live-dot" title="Traded in the last 5 minutes" aria-label="active" />}
           <span className="fr-fdv mono">{st.fdvPeakUsd != null ? `peak ${fmtUsd(st.fdvPeakUsd)}` : 'FDV n/a'}</span>
@@ -281,15 +284,20 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
   usePlayerKeys(ctrl, 'global');
   const { share, msg } = useShare(h, ctrl);
   const [sheet, setSheet] = useState(false);
-  const dimIds = useMemo(() => (metrics ? filterIds(metrics, st.filter) : null), [metrics, st.filter]);
+  const [tab, setTab] = useState<'moment' | 'traders'>('moment');
   const L = h.bundle.launch;
   const status = h.status;
   const outOfRange = init.from != null && h.series.size > 0 && init.from * 1000 < h.series.start - 1000;
   const firstOpen = useRef(true);
   useEffect(() => {
-    if (st.selection && !firstOpen.current) setSheet(true);
+    if (!st.selection) return;
+    setTab('moment');
+    if (!firstOpen.current) setSheet(true); // not for the moment opened on load
     firstOpen.current = false;
   }, [st.selection?.[0], st.selection?.[1]]);
+  useEffect(() => {
+    if (st.wallet) setSheet(true);
+  }, [st.wallet]);
   const freshness = status.displayLag;
   const isRef = L.mint === REFERENCE.mint;
   // the reference replay opens on its busiest five seconds, so the panel explains something right away
@@ -300,39 +308,39 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
     ctrl.select(a, b);
     ctrl.seek(b, true);
   }, [ctrl]);
+  const book = useBook(h.series, st.playhead, L.supply);
+  const ph = h.series.swaps[h.series.indexAt(st.playhead)];
+  const first = h.series.swaps[0];
+  const mcap = ph && p.usdPerSol ? ph.priceSol * L.supply * p.usdPerSol : null;
+  const changePct = ph && first ? (ph.priceSol / first.priceSol - 1) * 100 : null;
+  const sub = isRef ? `Real trades · ${REFERENCE.date} · ${REFERENCE.venue}` : L.phase === 'bonding' ? 'pump.fun bonding curve' : 'PumpSwap';
   return (
     <>
       <main className="center" aria-label="Player">
-        <div className="token-head">
-          <div>
-            <h1 className="token-name">
-              {L.name} <span className="muted">${L.symbol}</span>
-            </h1>
-            <p className="small muted">
-              {isRef ? `Real trades · ${REFERENCE.date} · ${REFERENCE.venue} · ` : L.phase === 'bonding' ? 'pump.fun · ' : 'PumpSwap · '}
-              {h.mode === 'demo' ? <span className="mono">{short(L.mint, 6)}</span> : <a className="mono" href={SOL_EXPLORER_TOKEN(L.mint)} target="_blank" rel="noreferrer noopener">{short(L.mint, 6)} ↗</a>}
-              {L.origin === 'search' && !isRef && <span className="tag" title="Tracking started after this token was created: earlier swaps are missing">partial history</span>}
-            </p>
-          </div>
-          <div className="statusline" aria-live="polite">
+        <TokenHeader name={L.name} symbol={L.symbol} mint={L.mint} uri={L.uri} sub={sub} badge={isRef ? 'REAL DATA' : L.origin === 'search' ? 'PARTIAL HISTORY' : undefined} mcap={mcap} changePct={changePct} mode={h.mode}>
+          <div className="thead-status" aria-live="polite">
             <span className={`pill ${status.state === 'live' ? 'pill-live' : status.state === 'replay' ? '' : 'pill-bad'}`}>
-              {status.state === 'live' ? '● Stream connected' : status.state === 'replay' ? (isRef ? 'Replay of real data' : 'Replay') : status.state === 'reconnecting' ? `◌ Reconnecting (${status.reconnects})` : status.state === 'offline' ? '◌ Offline — retrying' : '◌ Connecting'}
+              {status.state === 'live' ? '● Live' : status.state === 'replay' ? '⏪ Replay' : status.state === 'reconnecting' ? `◌ Reconnecting (${status.reconnects})` : status.state === 'offline' ? '◌ Offline, retrying' : '◌ Connecting'}
             </span>
             {h.live && freshness.chainToScreen != null && (
-              <span className="small muted" title="Time between the swap on Solana and its display here (Solana timestamps are to the second)">
+              <span className="small muted" title="Time between the trade on Solana and its display here">
                 {fmtDur(freshness.chainToScreen, true)} behind the chain
               </span>
             )}
-            
             {h.setOffline && (
-              <button type="button" className="btn btn-ghost btn-s" onClick={() => h.setOffline!(!h.offline)} title="Demo: cut the stream, then restore it to test resume and de-duplication">
+              <button type="button" className="btn btn-ghost btn-s" onClick={() => h.setOffline!(!h.offline)}>
                 {h.offline ? 'Restore connection' : 'Simulate disconnect'}
               </button>
             )}
           </div>
-        </div>
+        </TokenHeader>
+        {isRef && (
+          <p className="hook" title={REFERENCE.context}>
+            {REFERENCE.hook}
+          </p>
+        )}
+        <PulseStrip series={h.series} playhead={st.playhead} supply={L.supply} solUsd={p.usdPerSol} book={book} />
         {outOfRange && <p className="notice">The shared range starts before the first event available for this token. Data outside the 48 h retention (or before the collector started) cannot be replayed.</p>}
-        {isRef && <p className="context">{REFERENCE.context}</p>}
         {h.bundle.gaps.length > 0 && <p className="notice small">Some moments were not recorded (collector offline). They appear as hatched “NO DATA” zones.</p>}
         <div className="chart-bar">
           <CandleSize ctrl={ctrl} />
@@ -341,20 +349,51 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
         <TVChart ctrl={ctrl} isLive={h.live} usdPerSol={p.usdPerSol} supply={L.supply} label={`Price and volume of ${L.name}. Drag to move, wheel to zoom, click a candle to open it.`} />
         <Transport ctrl={ctrl} h={h} t0={p.t0} onShare={share} />
         {msg && <p className="toast" role="status">{msg}</p>}
-        <p className="kbd-hint small muted">
-          Drag to move · wheel to zoom · drag the price or time axis to stretch it · click a candle to see who traded it · <kbd>Space</kbd> play/pause · <kbd>←</kbd> <kbd>→</kbd> one trade at a time · <kbd>Esc</kbd> clear
+        <p className="kbd-hint">
+          <span>Drag to move</span>
+          <span>Scroll to zoom</span>
+          <span>Click a candle → who bought it</span>
+          <span>Click a wallet → all its trades</span>
+          <span>
+            <kbd>Space</kbd> play
+          </span>
+          <span>
+            <kbd>←</kbd> <kbd>→</kbd> trade by trade
+          </span>
         </p>
         <div className="row gap-s pad-t">
-          <Link className="btn btn-ghost btn-s" to={`/app/${h.mode}/compare?a=${L.mint}`}>Compare with…</Link>
-          <Link className="btn btn-ghost btn-s" to={`/app/${h.mode}/blind/${L.mint}`}>Blind replay</Link>
+          <Link className="btn btn-ghost btn-s" to={`/app/${h.mode}/compare?a=${L.mint}`}>
+            ⚔️ Compare with…
+          </Link>
+          <Link className="btn btn-ghost btn-s" to={`/app/${h.mode}/blind/${L.mint}`}>
+            🙈 Blind replay
+          </Link>
           {h.mode === 'live' && h.bundle.coverage.collectorStartedAt && <span className="small muted">Collector observing since {fmtDate(h.bundle.coverage.collectorStartedAt)}</span>}
         </div>
       </main>
-      <aside className={`panel${sheet ? ' open' : ''}`} aria-label="Selection details">
+      <aside className={`panel${sheet ? ' open' : ''}`} aria-label="Details">
         <button type="button" className="sheet-handle" onClick={() => setSheet((v) => !v)} aria-expanded={sheet}>
-          {metrics ? `Selection · ${metrics.count} swaps` : `Latest swaps · ${h.series.size}`}
+          {st.wallet ? 'Wallet' : tab === 'traders' ? 'Top traders' : metrics ? `This moment · ${metrics.count} trades` : 'Latest trades'}
         </button>
-        <MemoPanel ctrl={ctrl} m={metrics} tape={p.tape} t0={p.t0} mode={h.mode} filter={st.filter} highlight={st.highlight} onShare={share} onFunding={p.addFunding} solUsd={p.usdPerSol} />
+        {st.wallet ? (
+          <WalletPanel wallet={st.wallet} book={book} swaps={h.series.swaps} ctrl={ctrl} solUsd={p.usdPerSol} supply={L.supply} mode={h.mode} playhead={st.playhead} />
+        ) : (
+          <>
+            <div className="ptabs" role="tablist" aria-label="Panel">
+              <button type="button" role="tab" aria-selected={tab === 'moment'} className={tab === 'moment' ? 'on' : ''} onClick={() => setTab('moment')}>
+                ⚡ {metrics ? 'This moment' : 'Latest trades'}
+              </button>
+              <button type="button" role="tab" aria-selected={tab === 'traders'} className={tab === 'traders' ? 'on' : ''} onClick={() => setTab('traders')}>
+                🏆 Top traders <span className="cnt">{book.traders.length.toLocaleString('en-US')}</span>
+              </button>
+            </div>
+            {tab === 'moment' ? (
+              <MemoPanel ctrl={ctrl} m={metrics} tape={p.tape} t0={p.t0} mode={h.mode} filter={st.filter} highlight={st.highlight} onShare={share} onFunding={p.addFunding} solUsd={p.usdPerSol} supply={L.supply} />
+            ) : (
+              <TradersPanel book={book} ctrl={ctrl} solUsd={p.usdPerSol} supply={L.supply} playhead={st.playhead} />
+            )}
+          </>
+        )}
       </aside>
     </>
   );

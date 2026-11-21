@@ -79,6 +79,7 @@ export const rowToLaunch = (r: Row): Launch => ({
   firstObservedAt: r.first_observed_at as number,
   supply: r.supply as number,
   mode: 'live',
+  uri: (r.uri as string) ?? null,
 });
 
 export const rowToGap = (r: Row): Gap => ({

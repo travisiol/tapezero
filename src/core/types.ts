@@ -58,6 +58,8 @@ export interface Launch {
   firstObservedAt: number; // ms (collector)
   supply: number; // UI units
   mode: DataMode;
+  /** Metadata JSON set by the creator (name, image). */
+  uri?: string | null;
 }
 
 export interface Gap {

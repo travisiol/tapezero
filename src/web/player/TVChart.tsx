@@ -138,15 +138,29 @@ export function TVChart({ ctrl, isLive, usdPerSol, supply, height, label, compac
     }
   }, [fitNonce]);
 
-  // highlighted trade → a marker
+  // highlighted trade + the opened wallet's trades → markers
   useEffect(() => {
     if (!markers.current) return;
     const s = st.highlight ? ctrl.series.swaps.find((x) => x.id === st.highlight) : null;
     const b = bucketRef.current;
-    markers.current.setMarkers(
-      s ? [{ time: sec(Math.floor(s.tl / b) * b), position: s.side === 'buy' ? 'belowBar' : 'aboveBar', color: C.accent, shape: s.side === 'buy' ? 'arrowUp' : 'arrowDown', text: s.side === 'buy' ? 'BUY' : 'SELL' }] : [],
-    );
-  }, [st.highlight, bucket, sv]);
+    const at = (x: { tl: number }) => sec(Math.floor(x.tl / b) * b);
+    type M = Parameters<ISeriesMarkersPluginApi<Time>['setMarkers']>[0][number];
+    const out: M[] = [];
+    if (st.wallet) {
+      const seen = new Set<string>();
+      for (const x of ctrl.series.swaps) {
+        if (x.wallet !== st.wallet || x.id === st.highlight) continue;
+        const k = at(x) + x.side;
+        if (seen.has(k)) continue; // one marker per candle and side
+        seen.add(k);
+        out.push({ time: at(x), position: x.side === 'buy' ? 'belowBar' : 'aboveBar', color: x.side === 'buy' ? C.buy : C.sell, shape: 'circle', text: x.side === 'buy' ? 'B' : 'S', size: 1 });
+        if (out.length >= 200) break;
+      }
+    }
+    if (s) out.push({ time: at(s), position: s.side === 'buy' ? 'belowBar' : 'aboveBar', color: C.accent, shape: s.side === 'buy' ? 'arrowUp' : 'arrowDown', text: s.side === 'buy' ? 'BUY' : 'SELL' });
+    out.sort((p, q) => (p.time as number) - (q.time as number));
+    markers.current.setMarkers(out);
+  }, [st.highlight, st.wallet, bucket, sv]);
 
   // TAPEZERO layer: playhead, live edge, selected moment — repositioned every frame (cheap)
   useEffect(() => {

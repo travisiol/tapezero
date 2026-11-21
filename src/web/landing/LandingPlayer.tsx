@@ -79,6 +79,7 @@ function Player({ h }: { h: LaunchHandle & { provenance: Provenance } }) {
           <div>
             <span className="badge badge-real">Real on-chain data</span>
             <span className="lp-title">
+              <img className="lp-logo" src={REFERENCE.logo} alt="" width={26} height={26} />
               {REFERENCE.name} <span className="muted">· {REFERENCE.symbol} · {REFERENCE.venue}</span>
             </span>
             <span className="muted small">

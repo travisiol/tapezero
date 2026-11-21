@@ -122,7 +122,8 @@ export function usePlayerKeys(ctrl: PlayerController, scope: 'global' | React.Re
           else ctrl.step(1);
           break;
         case 'Escape':
-          if (ctrl.s.selection) ctrl.clearSelection();
+          if (ctrl.s.wallet) ctrl.set({ wallet: null });
+          else if (ctrl.s.selection) ctrl.clearSelection();
           else handled = false;
           break;
         case 'l':

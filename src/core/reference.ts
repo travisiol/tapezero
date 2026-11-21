@@ -11,8 +11,12 @@ export const REFERENCE = {
   date: '18 Nov 2026',
   venue: 'PumpSwap',
   url: '/data/dcty.json',
+  /** The coin's own logo, from its on-chain metadata (local copy). */
+  logo: '/tokens/dcty.webp',
+  /** One-line hook shown above the chart. */
+  hook: '🎮 Named after the fictional coin in the GTA VI trailer · $685k → $3.2M in under 4 minutes',
   /** One honest sentence of context; numbers are checked against the data file. */
-  context: 'DacityCoin (DCTY) is named after the fictional coin in the GTA VI trailer. On 18 Nov 2026 its market cap goes from $685k to $3.2M in under four minutes: 6,731 trades by 1,593 buyers. Here they are, one by one.',
+  context: 'DacityCoin (DCTY) is named after the fictional coin in the GTA VI trailer. On 18 Nov 2026 its market cap goes from $685k to $3.2M in under four minutes: 6,230 trades by 1,593 buyers. Here they are, one by one.',
 };
 
 /** Compact on-disk format (v2): wallets are de-duplicated, legs are arrays. */

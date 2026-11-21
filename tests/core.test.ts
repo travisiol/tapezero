@@ -77,3 +77,27 @@ test('all demo scripts build and print stats', () => {
     console.log(sc.key, s.size, 'swaps', 'peak', st.fdvPeakUsd && Math.round(st.fdvPeakUsd), 'ttp', st.timeToPeak, 'trunc', st.historyTruncated, 'dd', st.drawdownFromPeak?.toFixed(2));
   }
 });
+
+test('trader book: average cost, realized and unrealized PnL, older bags kept apart', async () => {
+  const { traderBook, prefixes, pulseAt } = await import('../src/core/traders.ts');
+  const s = new SwapSeries('M');
+  const leg = (i: number, wallet: string, side: 'buy' | 'sell', sol: number, tokens: number): SwapLeg => ({ id: `s${i}:0`, seq: i, mint: 'M', venue: 'pumpswap', signature: `s${i}`, evIndex: 0, slot: i, chainTime: 100 + i, observedAt: 0, source: 'backfill', wallet, side, sol, tokens, priceSol: sol / tokens, reserveSol: null });
+  s.add([leg(1, 'A', 'buy', 1, 100), leg(2, 'A', 'buy', 3, 100), leg(3, 'A', 'sell', 4, 100), leg(4, 'B', 'sell', 2, 50), leg(5, 'C', 'buy', 1, 25)], 0);
+  const b = traderBook(s.swaps, s.size, 1000);
+  const A = b.traders.find((t) => t.wallet === 'A')!;
+  // bought 200 for 4 SOL (avg 0.02), sold 100 for 4 → realized +2, 100 left costing 2, price now 0.04 → unrealized +2
+  assert.equal(A.realizedSol, 2);
+  assert.equal(A.held, 100);
+  assert.ok(Math.abs(A.unrealizedSol - 2) < 1e-9);
+  const B = b.traders.find((t) => t.wallet === 'B')!;
+  assert.equal(B.preSoldSol, 2);
+  assert.equal(B.realizedSol, 0);
+  assert.equal(b.inProfit, 1); // A; C bought at the current price (0 PnL); B has no buy
+  // as of an earlier playhead, the future does not exist
+  const early = traderBook(s.swaps, 2, 1000);
+  assert.equal(early.traders.length, 1);
+  const p = prefixes(s.swaps);
+  const pu = pulseAt(s.swaps, p, 2)!;
+  assert.equal(pu.ath, 0.04);
+  assert.equal(pu.traders, 1);
+});
