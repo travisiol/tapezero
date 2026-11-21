@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '../router.tsx';
+import { emph } from '../player/emph.tsx';
 import { Wordmark, ZeroMark } from './Brand.tsx';
 import { LandingPlayer, busiestCandle } from './LandingPlayer.tsx';
 import { prefersReducedMotion } from '../util.ts';
@@ -95,7 +96,7 @@ function CandleReading({ h }: { h: LaunchHandle }) {
           .slice(0, 4)
           .map((x, i) => (
             <li key={i}>
-              <span className="story-line">{x.text}</span>
+              <span className="story-line">{emph(x.text)}</span>
             </li>
           ))}
       </ul>

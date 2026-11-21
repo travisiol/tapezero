@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { PlayerController, SPEEDS, type PlayerState } from '../../core/player.ts';
+import { pickBucket } from '../../core/series.ts';
 import { computeWindow, usdAt, type WindowMetrics } from '../../core/metrics.ts';
 import { makeCtx } from '../../core/context.ts';
 import { fmtClock, fmtDur, fmtTplus } from '../../core/format.ts';
@@ -238,4 +239,36 @@ export function useShare(h: LaunchHandle, ctrl: PlayerController) {
     timer.current = setTimeout(() => setMsg(null), 4000);
   };
   return { share, msg };
+}
+
+const SIZES: [number | null, string][] = [
+  [null, 'Auto'],
+  [1000, '1s'],
+  [5000, '5s'],
+  [15000, '15s'],
+  [60000, '1m'],
+  [300000, '5m'],
+];
+const label = (ms: number) => (ms < 60000 ? `${ms / 1000}s` : `${ms / 60000}m`);
+
+/** Candle size: automatic (follows the zoom) or fixed. Auto shows the size it picked. */
+export function CandleSize({ ctrl, compact }: { ctrl: PlayerController; compact?: boolean }) {
+  const st = ctrl.s;
+  const [v0, v1] = st.viewport;
+  const auto = pickBucket(v1 - v0, compact ? 48 : 70);
+  return (
+    <div className="candle-size" role="group" aria-label="Candle size">
+      <span className="candle-size-label">Candles</span>
+      <div className="seg">
+        {SIZES.map(([ms, name]) => {
+          const on = st.bucket === ms;
+          return (
+            <button key={name} type="button" className={on ? 'on' : ''} aria-pressed={on} onClick={() => ctrl.set({ bucket: ms })} title={ms ? `One candle = ${label(ms)} of trades` : 'Size follows the zoom level'}>
+              {ms === null && on ? `Auto · ${label(auto)}` : name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }

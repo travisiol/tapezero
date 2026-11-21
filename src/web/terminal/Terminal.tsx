@@ -5,7 +5,7 @@ import { REFERENCE, DEMO_DEFAULT_MINT, ensureDemoClock, isLiveAvailable, listLau
 import { Link, navigate } from '../router.tsx';
 import { Chart, Overview } from '../player/Chart.tsx';
 import { CandlePanel, filterIds } from '../player/CandlePanel.tsx';
-import { readInit, Transport, usePlayer, usePlayerKeys, useShare, type PlayerInit } from '../player/usePlayer.tsx';
+import { CandleSize, readInit, Transport, usePlayer, usePlayerKeys, useShare, type PlayerInit } from '../player/usePlayer.tsx';
 import { fmtDur, fmtSol, fmtUsd, short, fmtDate } from '../../core/format.ts';
 import { isDemoMint } from '../../core/demo.ts';
 import { Archive } from './Archive.tsx';
@@ -334,6 +334,9 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
         {outOfRange && <p className="notice">The shared range starts before the first event available for this token. Data outside the 48 h retention (or before the collector started) cannot be replayed.</p>}
         {isRef && <p className="context">{REFERENCE.context}</p>}
         {h.bundle.gaps.length > 0 && <p className="notice small">Some moments were not recorded (collector offline). They appear as hatched “NO DATA” zones.</p>}
+        <div className="chart-bar">
+          <CandleSize ctrl={ctrl} />
+        </div>
         <Chart
           ctrl={ctrl}
           t0={p.t0}

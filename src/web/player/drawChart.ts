@@ -51,7 +51,7 @@ export function layoutChart(series: SwapSeries, st: PlayerState, w: number, h: n
   const trackBottom = h - 6;
   const trackTop = trackBottom - trackH;
   const priceBottom = trackTop - 10;
-  const bucket = pickBucket(v1 - v0, opts.compact ? 48 : Math.max(30, Math.min(90, plotW / 12)));
+  const bucket = st.bucket ?? pickBucket(v1 - v0, opts.compact ? 48 : Math.max(30, Math.min(90, plotW / 12)));
   const upTo = st.blind ? st.playhead : Infinity;
   const candles = buildCandles(series, v0, Math.min(v1, series.liveEdge + bucket), bucket, upTo);
   let yMin = Infinity;
@@ -106,8 +106,8 @@ export function drawChart(ctx: CanvasRenderingContext2D, series: SwapSeries, st:
   ctx.lineTo(plotW + 0.5, h);
   ctx.stroke();
 
-  // ruler labels (T+ whole seconds — no invented precision)
-  ctx.font = `11px ${FONT_MONO}`;
+  // ruler labels (whole seconds — no invented precision)
+  ctx.font = `12px ${FONT_MONO}`;
   ctx.fillStyle = C.text2;
   ctx.textBaseline = 'middle';
   for (let t = firstTick; t <= L.v1; t += tick) {
@@ -254,7 +254,7 @@ export function drawChart(ctx: CanvasRenderingContext2D, series: SwapSeries, st:
 
   // price axis (FDV when a dated SOL/USD reference exists, else SOL price)
   ctx.fillStyle = C.text2;
-  ctx.font = `10px ${FONT_MONO}`;
+  ctx.font = `11.5px ${FONT_MONO}`;
   for (let i = 0; i <= 4; i++) {
     const p = L.yMax - ((L.yMax - L.yMin) * i) / 4;
     const py = priceTop + ((priceBottom - priceTop) * i) / 4;

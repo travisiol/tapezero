@@ -15,6 +15,7 @@ export interface PlayerState {
   highlight: string | null; // swap id
   filter: MetricFilter | null;
   blind: boolean; // Blind Replay: nothing after the playhead is visible
+  bucket: number | null; // candle size in ms; null = automatic from the zoom level
 }
 
 /**
@@ -45,6 +46,7 @@ export class PlayerController {
       highlight: null,
       filter: null,
       blind: false,
+      bucket: null,
       ...init,
     };
   }

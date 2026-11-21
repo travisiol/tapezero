@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { REFERENCE, referenceHandle, type LaunchHandle, type Provenance } from '../data/sources.ts';
 import { Chart } from '../player/Chart.tsx';
-import { Transport, usePlayer, usePlayerKeys, shareUrl } from '../player/usePlayer.tsx';
+import { CandleSize, Transport, usePlayer, usePlayerKeys, shareUrl } from '../player/usePlayer.tsx';
 import { filterIds, SideTag, TxLink } from '../player/CandlePanel.tsx';
 import { Link } from '../router.tsx';
+import { emph } from '../player/emph.tsx';
 import { fmtSol, fmtShare, fmtPct, fmtUsd, short, fmtClock } from '../../core/format.ts';
 import { summarize, usd } from '../../core/summary.ts';
 import { buildCandles, type SwapSeries } from '../../core/series.ts';
@@ -94,6 +95,9 @@ function Player({ h }: { h: LaunchHandle & { provenance: Provenance } }) {
         <p className="lp-context">{REFERENCE.context}</p>
         <div className="lp-body">
           <div className="lp-chart">
+            <div className="chart-bar">
+              <CandleSize ctrl={ctrl} compact />
+            </div>
             <Chart ctrl={ctrl} t0={p.t0} gaps={[]} isLive={false} usdPerSol={p.usdPerSol} supply={h.bundle.launch.supply} dimIds={dimIds} compact label="Dacity Coin price and swaps. Click a candle to see who bought it." />
             <Transport ctrl={ctrl} h={h} t0={p.t0} compact />
           </div>
@@ -107,7 +111,7 @@ function Player({ h }: { h: LaunchHandle & { provenance: Provenance } }) {
                   {sentences.slice(0, 4).map((x, i) => (
                     <li key={i}>
                       <button type="button" className={`story-line${x.filter && st.filter === x.filter ? ' on' : ''}`} disabled={!x.filter} onClick={() => x.filter && ctrl.set({ filter: st.filter === x.filter ? null : x.filter })}>
-                        {x.text}
+                        {emph(x.text)}
                       </button>
                     </li>
                   ))}

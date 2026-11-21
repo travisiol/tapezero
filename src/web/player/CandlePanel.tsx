@@ -7,6 +7,7 @@ import { SOL_EXPLORER_ADDR, SOL_EXPLORER_TX } from '../../core/types.ts';
 import { fmtClock, fmtDur, fmtPct, fmtPrice, fmtShare, fmtSol, fmtTplus, fmtUsd, short } from '../../core/format.ts';
 import { fetchFunding } from '../data/sources.ts';
 import { DEFINITIONS, money, summarize } from '../../core/summary.ts';
+import { emph } from './emph.tsx';
 
 interface Props {
   ctrl: PlayerController;
@@ -47,7 +48,7 @@ export function TxLink({ sig, mode }: { sig: string; mode: DataMode }) {
   if (mode === 'demo') return <span className="muted" title="Demo data — synthetic signature, no on-chain proof">demo tx</span>;
   return (
     <a className="txlink" href={SOL_EXPLORER_TX(sig)} target="_blank" rel="noreferrer noopener" title={`Verify ${sig} on Solscan`} aria-label={`Verify transaction ${short(sig, 6)} on Solscan`}>
-      tx ↗
+      Solscan ↗
     </a>
   );
 }
@@ -144,7 +145,7 @@ export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShar
               disabled={!x.filter}
               title={x.filter ? 'Highlight these swaps on the chart' : undefined}
             >
-              {x.text}
+              {emph(x.text)}
             </button>
           </li>
         ))}
@@ -264,27 +265,36 @@ export function SwapList({ swaps, t0, mode, ctrl, highlight, m, solUsd }: { swap
   const top3 = new Set(m?.top3.map((w) => w.wallet));
   const largestId = m?.largest?.id;
   return (
-    <ol className="swaps" aria-label="Swaps">
-      {swaps.slice(0, 400).map((s) => (
-        <li key={s.id} className={s.id === highlight ? 'hl' : ''}>
-          <button type="button" className="swaprow" onClick={() => ctrl.highlightSwap(s.id)} aria-label={`${s.side} ${money(s.sol, solUsd ?? null)} by ${s.wallet} at ${fmtClock(s.chainTime)} UTC`} title={`${fmtSol(s.sol)} SOL · slot ${s.slot}`}>
-            <span className="mono muted">{fmtClock(s.chainTime)}</span>
-            <SideTag side={s.side} />
-            <span className="mono num">{money(s.sol, solUsd ?? null)}</span>
-            <span className="mono muted">{short(s.wallet)}</span>
-            <span className="tags">
-              {s.id === largestId && <span className="tag tag-a">largest</span>}
-              {first.has(s.id) && <span className="tag">first buy</span>}
-              {top3.has(s.wallet) && s.side === 'buy' && <span className="tag">top 3</span>}
-              {s.legs > 1 && <span className="tag">{s.legs} legs</span>}
+    <div className="trades" role="table" aria-label="Trades">
+      <div className="trades-head" role="row">
+        <span role="columnheader">Time</span>
+        <span role="columnheader">Side</span>
+        <span role="columnheader" className="r">Amount</span>
+        <span role="columnheader">Wallet</span>
+        <span role="columnheader" className="sr-only">Proof</span>
+      </div>
+      {swaps.slice(0, 400).map((s) => {
+        const tags = [s.id === largestId && 'largest', first.has(s.id) && 'new buyer', top3.has(s.wallet) && s.side === 'buy' && 'top 3'].filter(Boolean) as string[];
+        return (
+          <div key={s.id} role="row" className={`trade${s.id === highlight ? ' hl' : ''}`} onClick={() => ctrl.highlightSwap(s.id)} title={`${fmtSol(s.sol)} SOL · slot ${s.slot} · click to show it on the chart`}>
+            <span className="t-time mono">{fmtClock(s.chainTime)}</span>
+            <span className={`t-side ${s.side}`}>{s.side === 'buy' ? '▲ Buy' : '▽ Sell'}</span>
+            <span className="t-amt">{money(s.sol, solUsd ?? null)}</span>
+            <span className="t-wallet">
+              <span className="mono">{short(s.wallet)}</span>
+              {tags.map((t) => (
+                <span key={t} className={`t-tag${t === 'largest' ? ' a' : ''}`}>{t}</span>
+              ))}
             </span>
-          </button>
-          <TxLink sig={s.signature} mode={mode} />
-        </li>
-      ))}
-      {swaps.length > 400 && <li className="muted small">+ {swaps.length - 400} more (narrow the window)</li>}
-      {swaps.length === 0 && <li className="muted small">No swaps.</li>}
-    </ol>
+            <span className="t-proof" onClick={(e) => e.stopPropagation()}>
+              <TxLink sig={s.signature} mode={mode} />
+            </span>
+          </div>
+        );
+      })}
+      {swaps.length > 400 && <p className="muted small pad">+ {swaps.length - 400} more — select a shorter moment</p>}
+      {swaps.length === 0 && <p className="muted small pad">No trades in this moment.</p>}
+    </div>
   );
 }
 
