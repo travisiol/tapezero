@@ -15,7 +15,8 @@
     "film:studio": "remotion studio film/index.ts",
     "film:render": "node scripts/render-film.mjs",
     "trailer:render": "node scripts/score.ts trailer && remotion render film/index.ts Trailer public/film/trailer.mp4 --codec=h264 --crf=23 --audio-codec=aac --pixel-format=yuv420p --gl=angle && remotion still film/index.ts Trailer public/film/trailer-poster.jpg --frame=225 --image-format=jpeg --jpeg-quality=85 --gl=angle",
-    "reference:fetch": "node scripts/fetch-reference.ts"
+    "reference:fetch": "node scripts/fetch-reference.ts",
+    "promo:render": "node scripts/score.ts promo && remotion render film/index.ts Promo public/film/tapezero-x-launch.mp4 --codec=h264 --crf=18 --audio-codec=aac --audio-bitrate=192k --pixel-format=yuv420p --gl=angle"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.1.0",

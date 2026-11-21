@@ -33,3 +33,19 @@ export const TRAILER_CUES = {
   final: 16 * B, // 9.14 s
   end: 10,
 };
+
+/** X launch post — 1080×1350, ~24.5 s. Every cut lands on a beat. */
+export const PROMO_CUES = {
+  hookEnd: 4 * B, // 2.29 — impact
+  candleSplit: 6.5 * B, // 3.71 — the candle breaks into its trades
+  brand: 9 * B, // 5.14
+  brandAlign: 11 * B, // 6.29 — doubled edge snaps back
+  rewindShot: 12 * B, // 6.86
+  rewind: 16 * B, // 9.14 — playhead jumps back 15 s
+  inspect: 20 * B, // 11.43
+  lines: [22 * B, 23 * B, 24 * B, 25 * B], // sentences appear one per beat
+  proof: 28 * B, // 16.0
+  end: 34 * B, // 19.43
+  final: 40 * B, // 22.86 — last impact
+  total: 24.5,
+};

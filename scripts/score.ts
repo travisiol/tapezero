@@ -2,12 +2,14 @@
 // Soft, rhythmic electronic at 105 BPM: warm short bass, dry percussion, small playback clicks.
 //   node scripts/score.ts  →  public/film/score.wav (48 kHz, 16-bit stereo, 35 s)
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { FILM_CUES as Q, TRAILER_CUES as T } from '../film/cues.ts';
+import { FILM_CUES as Q, TRAILER_CUES as T, PROMO_CUES as P } from '../film/cues.ts';
 
-const TRAILER = process.argv[2] === 'trailer';
+const MODE = process.argv[2] ?? 'film';
+const TRAILER = MODE === 'trailer';
+const PROMO = MODE === 'promo';
 
 const SR = 48000;
-const DUR = TRAILER ? 10 : 35;
+const DUR = PROMO ? 24.5 : TRAILER ? 10 : 35;
 const N = SR * DUR;
 const L = new Float32Array(N);
 const R = new Float32Array(N);
@@ -192,7 +194,51 @@ for (let b = Math.ceil(Q.liveReturn / BEAT); beatT(b) < Q.finalImpact - 0.01; b+
 impact(Q.finalImpact, 1);
 
 }
-if (TRAILER) trailerArrangement();
+// ── X launch post (24.5 s) ──
+function promoArrangement() {
+  texture(0, DUR, 0.04);
+  // hook: the counter climbs — tight ticks accelerating into the first impact
+  for (let t = 0.2, gap = 0.16; t < P.hookEnd - 0.05; t += gap, gap *= 0.93) tick(t, 0.07 + t * 0.02, rnd() * 0.5);
+  add(0.4, P.hookEnd - 0.4, (t) => rnd() * Math.pow(t / (P.hookEnd - 0.4), 2.2) * 0.22, 0.45, 0.1);
+  impact(P.hookEnd, 0.9);
+  const groove = (from: number, to: number, bassOn = true, lvl = 0.8) => {
+    for (let b = Math.ceil(from / BEAT - 1e-6); beatT(b) < to - 0.02; b++) {
+      const t = beatT(b);
+      kick(t, lvl);
+      if (b % 2 === 1) rim(t, 0.2);
+      hat(t + BEAT / 2, 0.11);
+      if (b % 4 === 3) hat(t + BEAT * 0.75, 0.05, -0.3);
+      if (bassOn) bass(t + BEAT / 2, bassLine[b % 8]);
+    }
+  };
+  groove(P.hookEnd, P.candleSplit);
+  // the candle breaks into its trades: bass out, a cascade of small pings
+  for (let i = 0; i < 14; i++) ping(P.candleSplit + i * 0.07, [76, 79, 83, 86][i % 4], 0.07, (i % 2 ? 0.4 : -0.4));
+  groove(P.candleSplit, P.brand, false, 0.45);
+  // brand: reversed swell into the realignment
+  reverseSwell(P.brandAlign, BEAT * 2, 0.5);
+  click(P.brand + 0.05, 0.4);
+  impact(P.brandAlign, 0.95);
+  pad(P.brand, P.rewindShot - P.brand + 1, [57, 64, 69], 0.035);
+  groove(P.rewindShot, P.rewind);
+  for (let t = P.rewindShot; t < P.rewind - 0.1; t += BEAT / 4) if (rnd() > 0.35) tick(t + 0.01, 0.05, rnd() * 0.6);
+  reverseSwell(P.rewind + 0.02, BEAT * 1.5, 0.55);
+  for (let i = 0; i < 6; i++) tick(P.rewind + 0.05 + i * 0.07, 0.12 - i * 0.015, -0.3 + i * 0.12);
+  groove(P.rewind, P.inspect);
+  // inspect: bass drops, one ping per sentence
+  groove(P.inspect, P.proof, false, 0.4);
+  pad(P.inspect, P.proof - P.inspect + 0.8, [64, 71, 76], 0.03);
+  P.lines.forEach((t, i) => ping(t, [76, 79, 83, 88][i], 0.18, [-0.35, 0.05, 0.4, 0][i]));
+  // proof: groove back, a click per trade row
+  groove(P.proof, P.end);
+  for (let i = 0; i < 6; i++) click(P.proof + 0.2 + i * 0.14, 0.18, -0.3 + i * 0.12);
+  // end: pulse, final impact, tail
+  groove(P.end, P.final, true, 0.6);
+  pad(P.end, DUR - P.end, [57, 64, 71], 0.045);
+  impact(P.final, 1);
+}
+if (PROMO) promoArrangement();
+else if (TRAILER) trailerArrangement();
 else filmArrangement();
 
 // ── master: gentle glue, soft clip, normalise to −1 dBFS, fade out ──
@@ -222,5 +268,5 @@ for (let i = 0; i < N; i++) {
   buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, R[i] * norm)) * 32767), 46 + i * 4);
 }
 mkdirSync('public/film', { recursive: true });
-writeFileSync(TRAILER ? 'public/film/trailer.wav' : 'public/film/score.wav', buf);
-console.log(`${TRAILER ? 'trailer' : 'score'}.wav written · ${DUR}s · peak normalised from ${peak.toFixed(2)}`);
+writeFileSync(PROMO ? 'public/film/promo.wav' : TRAILER ? 'public/film/trailer.wav' : 'public/film/score.wav', buf);
+console.log(`${MODE}.wav written · ${DUR}s · peak normalised from ${peak.toFixed(2)}`);
