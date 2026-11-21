@@ -9,7 +9,7 @@ const TRAILER = MODE === 'trailer';
 const PROMO = MODE === 'promo';
 
 const SR = 48000;
-const DUR = PROMO ? 24.5 : TRAILER ? 10 : 35;
+const DUR = PROMO ? 31 : TRAILER ? 10 : 35;
 const N = SR * DUR;
 const L = new Float32Array(N);
 const R = new Float32Array(N);
@@ -43,11 +43,21 @@ function kick(t0: number, g = 0.9) {
 }
 function impact(t0: number, g = 1) {
   kick(t0, g);
+  add(t0, 1.2, (t) => Math.sin(2 * Math.PI * 41 * t) * Math.exp(-t * 2.6) * Math.min(1, t * 300), g * 0.55);
+  add(t0, 0.5, (t) => (Math.sin(2 * Math.PI * 880 * t) * 0.5 + Math.sin(2 * Math.PI * 1320 * t) * 0.3) * Math.exp(-t * 9), g * 0.12, 0.2);
+}
+/** Tonal rise (replaces noise risers): a soft saw sweep under a low-pass. */
+function sweep(t0: number, len: number, g = 0.12) {
   let lp = 0;
-  add(t0, 1.4, (t) => {
-    lp += (rnd() - lp) * 0.04;
-    return lp * Math.exp(-t * 3.2) * 1.6 + Math.sin(2 * Math.PI * 38 * t) * Math.exp(-t * 2.2) * 0.6;
-  }, g * 0.7);
+  let ph = 0;
+  add(t0, len, (t) => {
+    const x = t / len;
+    const f = 110 * Math.pow(2, x * 2.5);
+    ph += f / SR;
+    const saw = 2 * (ph % 1) - 1;
+    lp += (saw - lp) * (0.02 + 0.1 * x);
+    return lp * x * x;
+  }, g);
 }
 function hat(t0: number, g = 0.12, pan = 0.25) {
   let prev = 0;
@@ -92,9 +102,9 @@ function reverseSwell(tEnd: number, len: number, g = 0.5) {
   let lp = 0;
   add(tEnd - len, len, (t) => {
     const x = t / len; // 0 → 1, grows like a reversed decay
-    lp += (rnd() - lp) * (0.02 + 0.2 * x);
-    const tone = Math.sin(2 * Math.PI * midi(33) * (len - t)) * 0.6;
-    return (lp * 1.4 + tone) * Math.pow(x, 3);
+    void lp;
+    const tone = Math.sin(2 * Math.PI * midi(45) * (len - t)) * 0.6 + Math.sin(2 * Math.PI * midi(57) * (len - t)) * 0.3;
+    return tone * Math.pow(x, 3);
   }, g);
 }
 function pad(t0: number, len: number, notes: number[], g = 0.06) {
@@ -106,7 +116,10 @@ function pad(t0: number, len: number, notes: number[], g = 0.06) {
     }, g, i % 2 ? 0.4 : -0.4);
   }
 }
-function texture(t0: number, len: number, g = 0.05) {
+function texture(_t0: number, _len: number, _g = 0.05) {
+  return; // removed: the filtered-noise bed sounded like the sea
+}
+function _textureUnused(t0: number, len: number, g = 0.05) {
   let lp = 0;
   let lp2 = 0;
   add(t0, len, (t) => {
@@ -125,7 +138,7 @@ function trailerArrangement() {
   texture(0, DUR, 0.04);
   pad(0, 2.2, [57, 64, 69], 0.035);
   click(T.playheadOn, 0.45);
-  add(T.splitStart, T.align - T.splitStart, (t) => rnd() * Math.pow(t / (T.align - T.splitStart), 2) * 0.25, 0.4, 0.2);
+  sweep(T.splitStart, T.align - T.splitStart, 0.1);
   impact(T.align, 0.95);
   for (let b = Math.ceil(T.align / BEAT); beatT(b) < T.end - 0.4; b++) {
     const t = beatT(b);
@@ -148,7 +161,7 @@ texture(0, DUR, 0.045);
 pad(0, 9.2, [57, 64, 69], 0.035);
 click(Q.playheadOn, 0.45); // the cursor lights up
 // split: airy rise while the layers drift apart, impact when they align
-add(Q.splitStart, Q.align - Q.splitStart, (t) => rnd() * Math.pow(t / (Q.align - Q.splitStart), 2) * 0.25, 0.4, 0.2);
+sweep(Q.splitStart, Q.align - Q.splitStart, 0.1);
 impact(Q.align, 0.95);
 
 for (let b = 4; b < 61; b++) {
@@ -194,46 +207,49 @@ for (let b = Math.ceil(Q.liveReturn / BEAT); beatT(b) < Q.finalImpact - 0.01; b+
 impact(Q.finalImpact, 1);
 
 }
-// ── X launch post (24.5 s) ──
+// ── X launch post (31 s): clean tones only — no noise beds ──
 function promoArrangement() {
-  texture(0, DUR, 0.04);
-  // hook: the counter climbs — tight ticks accelerating into the first impact
-  for (let t = 0.2, gap = 0.16; t < P.hookEnd - 0.05; t += gap, gap *= 0.93) tick(t, 0.07 + t * 0.02, rnd() * 0.5);
-  add(0.4, P.hookEnd - 0.4, (t) => rnd() * Math.pow(t / (P.hookEnd - 0.4), 2.2) * 0.22, 0.45, 0.1);
-  impact(P.hookEnd, 0.9);
-  const groove = (from: number, to: number, bassOn = true, lvl = 0.8) => {
+  const groove = (from: number, to: number, bassOn = true, lvl = 0.75) => {
     for (let b = Math.ceil(from / BEAT - 1e-6); beatT(b) < to - 0.02; b++) {
       const t = beatT(b);
       kick(t, lvl);
-      if (b % 2 === 1) rim(t, 0.2);
-      hat(t + BEAT / 2, 0.11);
-      if (b % 4 === 3) hat(t + BEAT * 0.75, 0.05, -0.3);
+      if (b % 2 === 1) rim(t, 0.16);
+      hat(t + BEAT / 2, 0.07);
       if (bassOn) bass(t + BEAT / 2, bassLine[b % 8]);
     }
   };
-  groove(P.hookEnd, P.candleSplit);
-  // the candle breaks into its trades: bass out, a cascade of small pings
-  for (let i = 0; i < 14; i++) ping(P.candleSplit + i * 0.07, [76, 79, 83, 86][i % 4], 0.07, (i % 2 ? 0.4 : -0.4));
-  groove(P.candleSplit, P.brand, false, 0.45);
-  // brand: reversed swell into the realignment
-  reverseSwell(P.brandAlign, BEAT * 2, 0.5);
-  click(P.brand + 0.05, 0.4);
+  // 1 · feed: light pulse, a soft blip for each name that appears
+  pad(0, P.explode + 0.5, [57, 64, 69], 0.04);
+  for (let b = 0; beatT(b) < P.explode - 0.05; b++) { kick(beatT(b), 0.45); hat(beatT(b) + BEAT / 2, 0.05); }
+  for (let i = 0; i < 8; i++) ping(0.5 + i * 0.3, [69, 72, 76, 79][i % 4], 0.07, i % 2 ? 0.35 : -0.35);
+  // 2 · explode: the counter climbs on a tonal rise, impact when it lands
+  groove(P.explode, P.chart);
+  sweep(P.explode + 0.3, 2.3, 0.1);
+  impact(P.explode + 2.6, 0.7);
+  // 3 · chart: bass out, a question
+  groove(P.chart, P.brand, false, 0.4);
+  pad(P.chart, P.brand - P.chart + 0.5, [60, 64, 67], 0.035);
+  ping(P.chart + 1.35, 83, 0.14);
+  // 4 · brand: reversed tone into the realignment
+  reverseSwell(P.brandAlign, BEAT * 2, 0.45);
+  click(P.brand + 0.1, 0.35);
   impact(P.brandAlign, 0.95);
-  pad(P.brand, P.rewindShot - P.brand + 1, [57, 64, 69], 0.035);
+  pad(P.brandAlign, P.rewindShot - P.brandAlign + 0.6, [57, 64, 71], 0.04);
+  // 5 · rewind
   groove(P.rewindShot, P.rewind);
-  for (let t = P.rewindShot; t < P.rewind - 0.1; t += BEAT / 4) if (rnd() > 0.35) tick(t + 0.01, 0.05, rnd() * 0.6);
-  reverseSwell(P.rewind + 0.02, BEAT * 1.5, 0.55);
-  for (let i = 0; i < 6; i++) tick(P.rewind + 0.05 + i * 0.07, 0.12 - i * 0.015, -0.3 + i * 0.12);
+  for (let t = P.rewindShot; t < P.rewind - 0.1; t += BEAT / 4) tick(t + 0.01, 0.045, (t * 7) % 1 - 0.5);
+  reverseSwell(P.rewind + 0.02, BEAT * 1.5, 0.5);
+  for (let i = 0; i < 6; i++) tick(P.rewind + 0.05 + i * 0.08, 0.11 - i * 0.015, -0.3 + i * 0.12);
   groove(P.rewind, P.inspect);
-  // inspect: bass drops, one ping per sentence
+  // 6 · inspect: bass drops, one note per line
   groove(P.inspect, P.proof, false, 0.4);
-  pad(P.inspect, P.proof - P.inspect + 0.8, [64, 71, 76], 0.03);
-  P.lines.forEach((t, i) => ping(t, [76, 79, 83, 88][i], 0.18, [-0.35, 0.05, 0.4, 0][i]));
-  // proof: groove back, a click per trade row
+  pad(P.inspect, P.proof - P.inspect + 0.6, [64, 71, 76], 0.035);
+  P.lines.forEach((t, i) => ping(t, [76, 79, 83][i], 0.17, [-0.3, 0.05, 0.35][i]));
+  // 7 · proof: groove back, a click per row
   groove(P.proof, P.end);
-  for (let i = 0; i < 6; i++) click(P.proof + 0.2 + i * 0.14, 0.18, -0.3 + i * 0.12);
-  // end: pulse, final impact, tail
-  groove(P.end, P.final, true, 0.6);
+  for (let i = 0; i < 5; i++) click(P.proof + 0.4 + i * 0.2, 0.16, -0.3 + i * 0.15);
+  // 8 · end
+  groove(P.end, P.final, true, 0.55);
   pad(P.end, DUR - P.end, [57, 64, 71], 0.045);
   impact(P.final, 1);
 }
