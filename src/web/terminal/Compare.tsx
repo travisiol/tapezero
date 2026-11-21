@@ -2,8 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { DataMode } from '../../core/types.ts';
 import { compareSide, type CompareSide } from '../../core/metrics.ts';
 import { makeCtx } from '../../core/context.ts';
-import { DEMO_SCRIPTS, demoMint } from '../../core/demo.ts';
-import { listLaunches, openLaunch, type LaunchHandle, type LaunchRow } from '../data/sources.ts';
+import { REFERENCE, listLaunches, openLaunch, type LaunchHandle, type LaunchRow } from '../data/sources.ts';
 import { navigate } from '../router.tsx';
 import { drawCompare, SERIES_STYLE } from '../player/drawCompare.ts';
 import { fmtDur, fmtShare, fmtSol } from '../../core/format.ts';
@@ -17,8 +16,8 @@ const WINDOWS = [
 
 export function Compare({ mode, search }: { mode: DataMode; search: string }) {
   const q = new URLSearchParams(search);
-  const a = q.get('a') ?? (mode === 'demo' ? demoMint('holo') : null);
-  const b = q.get('b') ?? (mode === 'demo' ? demoMint(a === demoMint('stak') ? 'holo' : 'stak') : null);
+  const a = q.get('a') ?? REFERENCE.mint;
+  const b = q.get('b');
   const w = Number(q.get('w')) || 30_000;
   const [rows, setRows] = useState<LaunchRow[]>([]);
   useEffect(() => {
@@ -54,7 +53,7 @@ export function Compare({ mode, search }: { mode: DataMode; search: string }) {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [playing, w]);
-  const opts = rows.length ? rows : DEMO_SCRIPTS.map((s) => ({ launch: { mint: demoMint(s.key), symbol: s.symbol, name: s.name } }) as LaunchRow);
+  const opts = rows;
   const pick = (k: 'a' | 'b', v: string | null) => (
     <select value={v ?? ''} onChange={(e) => setQ(k, e.target.value)} aria-label={`Launch ${k.toUpperCase()}`}>
       <option value="" disabled>
@@ -75,7 +74,6 @@ export function Compare({ mode, search }: { mode: DataMode; search: string }) {
           <h1>Two launches, aligned on their first swap</h1>
           <p className="muted">Same clock for both: the playhead is synchronised. Price is normalised to the first observed swap.</p>
         </div>
-        {mode === 'demo' && <span className="badge badge-demo">Demo data</span>}
       </div>
       <div className="compare-controls">
         <label>
@@ -101,6 +99,7 @@ export function Compare({ mode, search }: { mode: DataMode; search: string }) {
         <span className="mono">+{(dt / 1000).toFixed(0)} s</span>
       </div>
       <CompareTable sides={sides} names={[ha?.bundle.launch.symbol ?? 'A', hb?.bundle.launch.symbol ?? 'B']} />
+      {!b && <p className="notice small">Pick a second launch to compare. More launches appear here while the live collector is running.</p>}
       {sides.some((s) => s && !s.firstIsCreation) && <p className="notice small">For a launch joined mid-way, T+0 is the first <em>observed</em> swap, not the first swap on-chain.</p>}
     </div>
   );

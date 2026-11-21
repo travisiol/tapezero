@@ -3,15 +3,14 @@ import { Link } from '../router.tsx';
 import { Wordmark, ZeroMark } from './Brand.tsx';
 import { LandingPlayer, busiestCandle } from './LandingPlayer.tsx';
 import { prefersReducedMotion } from '../util.ts';
-import { demoReplayHandle, referenceHandle, type LaunchHandle } from '../data/sources.ts';
+import { referenceHandle, type LaunchHandle } from '../data/sources.ts';
 import { PlayerController } from '../../core/player.ts';
 import { Chart } from '../player/Chart.tsx';
-import { CompareView } from '../terminal/Compare.tsx';
-import { compareSide, computeWindow, usdAt } from '../../core/metrics.ts';
+import { computeWindow, usdAt } from '../../core/metrics.ts';
 import { makeCtx } from '../../core/context.ts';
-import { fmtClock, fmtShare } from '../../core/format.ts';
+import { fmtClock, fmtShare, short } from '../../core/format.ts';
+import { SOL_EXPLORER_TX } from '../../core/types.ts';
 import { money, summarize } from '../../core/summary.ts';
-import { SERIES_STYLE } from '../player/drawCompare.ts';
 
 export const TRAILER_SRC = '/film/trailer.mp4';
 export const TRAILER_POSTER = '/film/trailer-poster.jpg';
@@ -116,28 +115,26 @@ function CandleReading({ h }: { h: LaunchHandle }) {
   );
 }
 
-function CompareDemo() {
-  const sides = useMemo(
-    () =>
-      ['holo', 'stak'].map((k) => {
-        const d = demoReplayHandle(k, 300);
-        return compareSide(makeCtx(d.bundle, d.series), 30_000);
-      }),
-    [],
-  );
+/** Real trades of the busiest five seconds, each one a Solana transaction. */
+function TradesDemo({ h }: { h: LaunchHandle }) {
+  const { trades, solUsd } = useMemo(() => {
+    const [a, b] = busiestCandle(h.series);
+    return { trades: h.series.range(a, b).sort((x, y) => y.sol - x.sol).slice(0, 8), solUsd: usdAt(h.bundle.usd, a)?.solUsd ?? null };
+  }, [h]);
   return (
-    <div className="compare-demo">
-      <CompareView sides={sides} names={['Launch A', 'Launch B']} windowMs={30_000} dt={30_000} height={230} />
-      <div className="compare-facts">
-        <p>
-          <span style={{ color: SERIES_STYLE[0].color }}>A</span> {sides[0].buyersBeforePeak} buyers · biggest wallet {fmtShare(sides[0].topBuyerShare.value)} of the buying
-        </p>
-        <p>
-          <span style={{ color: SERIES_STYLE[1].color }}>B</span> {sides[1].buyersBeforePeak} buyers · biggest wallet {fmtShare(sides[1].topBuyerShare.value)} of the buying
-        </p>
-        <span className="badge badge-demo">Demo data</span>
-      </div>
-    </div>
+    <ol className="trades-demo" aria-label="Real Dacity Coin trades">
+      {trades.map((t) => (
+        <li key={t.id}>
+          <span className="mono muted">{fmtClock(t.chainTime)}</span>
+          <span className={`side side-${t.side}`}>{t.side === 'buy' ? '▲ Buy' : '▽ Sell'}</span>
+          <span className="mono num">{money(t.sol, solUsd)}</span>
+          <span className="mono muted">{short(t.wallet)}</span>
+          <a className="txlink" href={SOL_EXPLORER_TX(t.signature)} target="_blank" rel="noreferrer noopener">
+            Solscan ↗
+          </a>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -231,12 +228,12 @@ export function Landing() {
 
         <section className="feature" aria-labelledby="f3">
           <div className="feature-copy">
-            <p className="feature-kicker">Compare</p>
-            <h2 id="f3">Same chart, different story.</h2>
-            <p>Line two launches up on their first trade. Here both reach the same peak — one with forty buyers, the other with one big wallet doing most of the buying.</p>
+            <p className="feature-kicker">Check</p>
+            <h2 id="f3">Every trade, one click from proof.</h2>
+            <p>Each line is a real Solana transaction: time, buy or sell, amount, wallet. Open it on Solscan and check it yourself. These are the biggest trades of Dacity’s busiest five seconds.</p>
           </div>
           <div className="feature-ui">
-            <CompareDemo />
+            {ref ? <TradesDemo h={ref} /> : <div className="feature-loading" />}
           </div>
         </section>
       </div>

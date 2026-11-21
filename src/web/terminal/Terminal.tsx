@@ -20,11 +20,12 @@ export default function Terminal({ path, search }: { path: string; search: strin
   const parts = path.split('/').filter(Boolean); // app, mode, view, arg
   const mode = parts[1] as DataMode | undefined;
   useEffect(() => {
-    if (mode !== 'live' && mode !== 'demo') {
-      navigate(`/app/live/token/${REFERENCE.mint}`, true);
+    if (mode !== 'live') {
+      const rest = parts.slice(2).join('/');
+      navigate(rest && rest !== 'token' ? `/app/live/${rest}${search}` : `/app/live/token/${REFERENCE.mint}`, true);
     }
   }, [mode]);
-  if (mode !== 'live' && mode !== 'demo') return <div className="boot dots-bg"><Wordmark /></div>;
+  if (mode !== 'live') return <div className="boot dots-bg"><Wordmark /></div>;
   const view = parts[2] ?? 'token';
   const arg = parts[3] ? decodeURIComponent(parts[3]) : null;
   return (
@@ -59,14 +60,6 @@ function TopBar({ mode, view, arg }: { mode: DataMode; view: string; arg: string
         {tab('archive', 'Archive', `/app/${mode}/archive`)}
         {tab('compare', 'Compare', `/app/${mode}/compare`)}
       </nav>
-      <div className="modeswitch" role="group" aria-label="Data source">
-        <button type="button" className={mode === 'live' ? 'on' : ''} aria-pressed={mode === 'live'} onClick={() => switchTo('live')} disabled={live === false} title={live === false ? 'Collector API not reachable — start `npm start` and `npm run worker`' : 'Solana mainnet data'}>
-          Mainnet
-        </button>
-        <button type="button" className={mode === 'demo' ? 'on' : ''} aria-pressed={mode === 'demo'} onClick={() => switchTo('demo')}>
-          Demo data
-        </button>
-      </div>
     </header>
   );
 }
@@ -96,7 +89,7 @@ function LiveView({ mode, mint, search }: { mode: DataMode; mint: string | null;
     const pick = mode === 'demo' ? DEMO_DEFAULT_MINT : REFERENCE.mint;
     if (pick) navigate(`/app/${mode}/token/${pick}`, true);
   }, [mint, list, mode]);
-  const wrongMode = mint && (mode === 'demo') !== isDemoMint(mint);
+  const wrongMode = mint != null && isDemoMint(mint);
   return (
     <div className={`live-grid${feedOpen ? ' feed-open' : ''}`}>
       <aside className="feed" aria-label="Launch feed">
@@ -107,9 +100,9 @@ function LiveView({ mode, mint, search }: { mode: DataMode; mint: string | null;
       </button>
       {wrongMode ? (
         <div className="center-empty dots-bg">
-          <p>{mode === 'demo' ? 'This is a mainnet mint — open it in Mainnet mode.' : 'This is a demo mint — demo data never mixes with mainnet data.'}</p>
-          <Link className="btn btn-primary" to={`/app/${mode === 'demo' ? 'live' : 'demo'}/token/${mint}${search}`}>
-            Open in {mode === 'demo' ? 'Mainnet' : 'Demo'} mode
+          <p>This link points to an old example that no longer exists.</p>
+          <Link className="btn btn-primary" to={`/app/live/token/${REFERENCE.mint}`}>
+            Open Dacity Coin
           </Link>
         </div>
       ) : mint ? (
@@ -165,11 +158,7 @@ function Feed({ mode, list, err, current, onPick }: { mode: DataMode; list: Laun
   return (
     <div className="feed-inner">
       <div className="feed-status">
-        {mode === 'demo' ? (
-          <span className="badge badge-demo">Demo data</span>
-        ) : (
-          <CollectorPill list={list} err={err} />
-        )}
+        <CollectorPill list={list} err={err} />
       </div>
       <form onSubmit={submit} role="search" className="feed-search">
         <input value={q} onChange={(e) => (setQ(e.target.value), setMsg(null))} placeholder="Search name or paste a mint" aria-label="Search launches by name or mint" spellCheck={false} />
@@ -326,7 +315,6 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
             </p>
           </div>
           <div className="statusline" aria-live="polite">
-            {h.mode === 'demo' && <span className="badge badge-demo">Demo data</span>}
             <span className={`pill ${status.state === 'live' ? 'pill-live' : status.state === 'replay' ? '' : 'pill-bad'}`}>
               {status.state === 'live' ? '● Stream connected' : status.state === 'replay' ? (isRef ? 'Replay of real data' : 'Replay') : status.state === 'reconnecting' ? `◌ Reconnecting (${status.reconnects})` : status.state === 'offline' ? '◌ Offline — retrying' : '◌ Connecting'}
             </span>

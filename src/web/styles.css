@@ -445,3 +445,8 @@ table.archive, table.cmp { border-collapse: collapse; width: 100%; font-size: 13
   .feature-flip .feature-copy { order: 0; }
   .feature-ui { min-height: 0; }
 }
+.trades-demo { list-style: none; margin: 0; padding: 4px 6px; display: flex; flex-direction: column; }
+.trades-demo li { display: grid; grid-template-columns: 84px 70px 80px 1fr auto; gap: 10px; align-items: center; padding: 9px 4px; border-bottom: 1px solid rgba(72, 38, 56, 0.6); font-size: 14px; }
+.trades-demo li:last-child { border-bottom: 0; }
+.trades-demo .num { text-align: right; }
+@media (max-width: 560px) { .trades-demo li { grid-template-columns: 70px 56px 64px 1fr; } .trades-demo .txlink { grid-column: 4; justify-self: end; } }

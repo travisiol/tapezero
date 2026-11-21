@@ -74,7 +74,6 @@ function BlindView({ h }: { h: LaunchHandle }) {
           <p className="eyebrow">Blind replay</p>
           <h2>{revealed ? `${h.bundle.launch.name} ($${h.bundle.launch.symbol})` : `Launch ${code}`}</h2>
           <p className="small muted">Name and future hidden. Everything you see was available at the moment played — metrics are computed from events up to the playhead only.</p>
-          {h.mode === 'demo' && <span className="badge badge-demo">Demo data</span>}
           <label className="obs">
             Your observation at {fmtTplus(st.playhead, p.t0)}
             <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder="What do you see in the buys so far?" disabled={!!obs} />
