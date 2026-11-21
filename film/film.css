@@ -1,0 +1,13 @@
+.film .swaps li > span.muted { display: none; }
+.film .swaprow { grid-template-columns: 70px 76px 80px 1fr; font-size: 16px; }
+.film .panel-body { padding: 20px 22px; }
+.film .metric-value { font-size: 26px; }
+.film .metric-label { font-size: 14px; }
+.film .metric-sub { font-size: 13px; }
+.film .win { font-size: 22px; }
+.film .panel { min-width: 0; }
+.film .panel-body { max-width: 470px; }
+.film .metric { min-width: 0; overflow: hidden; }
+.film .candle-head .row { display: none; }
+.film .metric-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.film-compare .cmp th, .film-compare .cmp td { padding: 7px 12px; font-size: 16px; }

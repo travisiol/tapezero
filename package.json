@@ -1,0 +1,40 @@
+{
+  "name": "tapezero",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TAPEZERO — Rewind live Solana launches. Inspect the swaps behind every move.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "start": "node --experimental-strip-types server/api.ts",
+    "worker": "node --experimental-strip-types server/worker.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "film:score": "node --experimental-strip-types scripts/score.ts",
+    "film:studio": "remotion studio film/index.ts",
+    "film:render": "node scripts/render-film.mjs"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.1.0",
+    "@fontsource/space-grotesk": "^5.1.0",
+    "@react-three/fiber": "^9.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "three": "^0.176.0"
+  },
+  "devDependencies": {
+    "@remotion/bundler": "^4.0.300",
+    "@remotion/cli": "^4.0.300",
+    "@remotion/renderer": "^4.0.300",
+    "@remotion/three": "^4.0.300",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@types/three": "^0.176.0",
+    "@vitejs/plugin-react": "^4.4.0",
+    "remotion": "^4.0.300",
+    "typescript": "^5.8.0",
+    "vite": "^6.3.0"
+  }
+}
