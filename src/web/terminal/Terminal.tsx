@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import type { DataMode } from '../../core/types.ts';
 import { SOL_EXPLORER_TOKEN } from '../../core/types.ts';
-import { DEMO_DEFAULT_MINT, ensureDemoClock, isLiveAvailable, listLaunches, openLaunch, trackMint, type LaunchHandle, type LaunchList, type LaunchRow } from '../data/sources.ts';
+import { REFERENCE, DEMO_DEFAULT_MINT, ensureDemoClock, isLiveAvailable, listLaunches, openLaunch, trackMint, type LaunchHandle, type LaunchList, type LaunchRow } from '../data/sources.ts';
 import { Link, navigate } from '../router.tsx';
 import { Chart, Overview } from '../player/Chart.tsx';
 import { CandlePanel, filterIds } from '../player/CandlePanel.tsx';
@@ -12,6 +12,7 @@ import { Archive } from './Archive.tsx';
 import { Compare } from './Compare.tsx';
 import { Blind } from './Blind.tsx';
 import { Wordmark } from '../landing/Brand.tsx';
+import { busiestCandle } from '../landing/LandingPlayer.tsx';
 
 const MemoPanel = memo(CandlePanel);
 
@@ -20,7 +21,7 @@ export default function Terminal({ path, search }: { path: string; search: strin
   const mode = parts[1] as DataMode | undefined;
   useEffect(() => {
     if (mode !== 'live' && mode !== 'demo') {
-      isLiveAvailable().then((ok) => navigate(ok ? '/app/live' : '/app/demo', true));
+      navigate(`/app/live/token/${REFERENCE.mint}`, true);
     }
   }, [mode]);
   if (mode !== 'live' && mode !== 'demo') return <div className="boot dots-bg"><Wordmark /></div>;
@@ -92,7 +93,7 @@ function LiveView({ mode, mint, search }: { mode: DataMode; mint: string | null;
   // default token
   useEffect(() => {
     if (mint || !list) return;
-    const pick = mode === 'demo' ? DEMO_DEFAULT_MINT : (list.rows.find((r) => r.active && r.stats.swaps >= 5) ?? list.rows[0])?.launch.mint;
+    const pick = mode === 'demo' ? DEMO_DEFAULT_MINT : REFERENCE.mint;
     if (pick) navigate(`/app/${mode}/token/${pick}`, true);
   }, [mint, list, mode]);
   const wrongMode = mint && (mode === 'demo') !== isDemoMint(mint);
@@ -230,8 +231,7 @@ function FeedRow({ r, mode, on, onPick }: { r: LaunchRow; mode: DataMode; on: bo
         <span className="fr-name">{r.launch.name}</span>
         <span className="fr-meta mono">
           {st.swaps} swaps · {st.distinctBuyers} buyers · {fmtSol(st.liquiditySol)} SOL
-          {partial && <span className="tag" title={st.historyTruncated ? 'First swap not captured' : 'Collector gap'}>partial</span>}
-          {r.launch.phase !== 'bonding' && <span className="tag">{r.launch.phase}</span>}
+          {r.launch.mint === REFERENCE.mint ? <span className="tag tag-a">GTA VI · real data</span> : partial && <span className="tag" title={st.historyTruncated ? 'Tracking started after creation' : 'Collector was offline for a moment'}>partial history</span>}
         </span>
       </Link>
     </li>
@@ -239,9 +239,9 @@ function FeedRow({ r, mode, on, onPick }: { r: LaunchRow; mode: DataMode; on: bo
 }
 
 function CollectorPill({ list, err }: { list: LaunchList | null; err: string | null }) {
-  if (err) return <span className="pill pill-bad">● Collector API unreachable</span>;
+  if (err) return <span className="pill" title="The live collector (npm run worker + npm start) is not running">Live collector offline · archived replays only</span>;
   const c = list?.collector;
-  if (!c) return <span className="pill">◌ connecting…</span>;
+  if (!c) return <span className="pill">{list ? 'Live collector offline · archived replays' : '◌ connecting…'}</span>;
   const stale = Date.now() - c.updatedAt > 15_000;
   const ok = c.ws === 'connected' && !stale;
   return (
@@ -302,6 +302,15 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
     firstOpen.current = false;
   }, [st.selection?.[0], st.selection?.[1]]);
   const freshness = status.displayLag;
+  const isRef = L.mint === REFERENCE.mint;
+  // the reference replay opens on its busiest five seconds, so the panel explains something right away
+  useEffect(() => {
+    if (!isRef || init.from != null) return;
+    ctrl.set({ viewport: [h.series.start - 2000, h.series.liveEdge + 3000] });
+    const [a, b] = busiestCandle(h.series);
+    ctrl.select(a, b);
+    ctrl.seek(b, true);
+  }, [ctrl]);
   return (
     <>
       <main className="center" aria-label="Player">
@@ -310,22 +319,23 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
             <h1 className="token-name">
               {L.name} <span className="muted">${L.symbol}</span>
             </h1>
-            <p className="mono small muted">
-              {h.mode === 'demo' ? short(L.mint, 8) : <a href={SOL_EXPLORER_TOKEN(L.mint)} target="_blank" rel="noreferrer noopener">{short(L.mint, 8)} ↗</a>} · {L.phase === 'bonding' ? 'pump.fun bonding curve' : L.phase === 'migrated' ? 'migrated → PumpSwap' : 'curve complete'}
-              {L.origin === 'search' && <span className="tag" title="Tracking started on request; earlier swaps were not observed">from first observed swap</span>}
+            <p className="small muted">
+              {isRef ? 'Real swaps · 15 Oct 2026 · PumpSwap · ' : L.phase === 'bonding' ? 'pump.fun · ' : 'PumpSwap · '}
+              {h.mode === 'demo' ? <span className="mono">{short(L.mint, 6)}</span> : <a className="mono" href={SOL_EXPLORER_TOKEN(L.mint)} target="_blank" rel="noreferrer noopener">{short(L.mint, 6)} ↗</a>}
+              {L.origin === 'search' && !isRef && <span className="tag" title="Tracking started after this token was created: earlier swaps are missing">partial history</span>}
             </p>
           </div>
           <div className="statusline" aria-live="polite">
             {h.mode === 'demo' && <span className="badge badge-demo">Demo data</span>}
             <span className={`pill ${status.state === 'live' ? 'pill-live' : status.state === 'replay' ? '' : 'pill-bad'}`}>
-              {status.state === 'live' ? '● Stream connected' : status.state === 'replay' ? 'Replay · tape ended' : status.state === 'reconnecting' ? `◌ Reconnecting (${status.reconnects})` : status.state === 'offline' ? '◌ Offline — retrying' : '◌ Connecting'}
+              {status.state === 'live' ? '● Stream connected' : status.state === 'replay' ? (isRef ? 'Replay of real data' : 'Replay') : status.state === 'reconnecting' ? `◌ Reconnecting (${status.reconnects})` : status.state === 'offline' ? '◌ Offline — retrying' : '◌ Connecting'}
             </span>
             {h.live && freshness.chainToScreen != null && (
-              <span className="mono small muted" title="Chain time has 1 s resolution; collector time is when our collector received the event">
-                chain→screen {fmtDur(freshness.chainToScreen, true)} · collector→screen {fmtDur(Math.max(0, freshness.collectorToScreen ?? 0), true)}
+              <span className="small muted" title="Time between the swap on Solana and its display here (Solana timestamps are to the second)">
+                {fmtDur(freshness.chainToScreen, true)} behind the chain
               </span>
             )}
-            {status.duplicatesDropped > 0 && <span className="mono small muted" title="Events received twice (reconnect replay) and dropped by id">{status.duplicatesDropped} duplicates dropped</span>}
+            
             {h.setOffline && (
               <button type="button" className="btn btn-ghost btn-s" onClick={() => h.setOffline!(!h.offline)} title="Demo: cut the stream, then restore it to test resume and de-duplication">
                 {h.offline ? 'Restore connection' : 'Simulate disconnect'}
@@ -334,8 +344,8 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
           </div>
         </div>
         {outOfRange && <p className="notice">The shared range starts before the first event available for this token. Data outside the 48 h retention (or before the collector started) cannot be replayed.</p>}
-        {h.bundle.coverage.retentionHours === 0 && <p className="notice small">Reference replay: real Solana mainnet swaps rebuilt from the chain, not a live feed. Context: GTA VI trailer, 15 Oct 2026.</p>}
-        {h.bundle.gaps.length > 0 && <p className="notice small">⚠ {h.bundle.gaps.length} collector gap(s) on this token — shown as hatched “NO DATA” ranges.</p>}
+        {isRef && <p className="context">{REFERENCE.context}</p>}
+        {h.bundle.gaps.length > 0 && <p className="notice small">Some moments were not recorded (collector offline). They appear as hatched “NO DATA” zones.</p>}
         <Chart
           ctrl={ctrl}
           t0={p.t0}
@@ -350,7 +360,7 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
         <Transport ctrl={ctrl} h={h} t0={p.t0} onShare={share} />
         {msg && <p className="toast" role="status">{msg}</p>}
         <p className="kbd-hint small muted">
-          <kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> swap by swap · <kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> select · drag to select · click a candle to open it · <kbd>Shift</kbd>+drag to pan · wheel to zoom · <kbd>L</kbd> live · <kbd>Esc</kbd> clear
+          Click a candle to see who traded it · drag to pick a time range · <kbd>Space</kbd> play/pause · <kbd>←</kbd> <kbd>→</kbd> one swap at a time · <kbd>Esc</kbd> clear
         </p>
         <div className="row gap-s pad-t">
           <Link className="btn btn-ghost btn-s" to={`/app/${h.mode}/compare?a=${L.mint}`}>Compare with…</Link>
@@ -360,7 +370,7 @@ function TokenView({ h, init }: { h: LaunchHandle; init: PlayerInit }) {
       </main>
       <aside className={`panel${sheet ? ' open' : ''}`} aria-label="Selection details">
         <button type="button" className="sheet-handle" onClick={() => setSheet((v) => !v)} aria-expanded={sheet}>
-          {metrics ? `Window · ${metrics.count} swaps` : `Tape · ${h.series.size} swaps`}
+          {metrics ? `Selection · ${metrics.count} swaps` : `Latest swaps · ${h.series.size}`}
         </button>
         <MemoPanel ctrl={ctrl} m={metrics} tape={p.tape} t0={p.t0} mode={h.mode} filter={st.filter} highlight={st.highlight} onShare={share} onFunding={p.addFunding} solUsd={p.usdPerSol} />
       </aside>

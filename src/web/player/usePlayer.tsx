@@ -197,8 +197,8 @@ export function Transport({ ctrl, h, t0, compact, onShare, blind }: { ctrl: Play
         </div>
       </div>
       <div className="readout mono">
-        <span className="ph">{fmtTplus(st.playhead, t0)}</span>
-        <span className="muted">{fmtClock(st.playhead / 1000)} UTC{ph ? ` · slot ${ph.slot}` : ''}</span>
+        <span className="ph">{fmtClock(st.playhead / 1000)} UTC</span>
+        <span className="muted">{fmtTplus(st.playhead, t0).replace('T+', '+')} since the first trade shown{ph ? ` · slot ${ph.slot}` : ''}</span>
       </div>
       {h.live && !blind && (
         <div className="readout mono">

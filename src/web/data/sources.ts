@@ -291,7 +291,17 @@ export interface LaunchList {
 
 export async function listLaunches(mode: DataMode): Promise<LaunchList> {
   if (mode === 'demo') return { rows: demoRows(), coverage: demoCoverage(), collector: null };
-  return getJSON<LaunchList>('/api/launches');
+  const ref = await referenceHandle()
+    .then((h): LaunchRow => ({ launch: h.bundle.launch, stats: launchStats(makeCtx(h.bundle, h.series)), active: false }))
+    .catch(() => null);
+  try {
+    const l = await getJSON<LaunchList>('/api/launches');
+    if (ref && !l.rows.some((r) => r.launch.mint === ref.launch.mint)) l.rows.unshift(ref);
+    return l;
+  } catch (e) {
+    if (!ref) throw e;
+    return { rows: [ref], coverage: ref.launch && (await referenceHandle()).bundle.coverage, collector: null };
+  }
 }
 
 export async function fetchFunding(wallet: string): Promise<{ status: string; evidence?: FundingEvidence; note?: string }> {
@@ -369,6 +379,7 @@ export const REFERENCE = {
   key: 'dacity-gta6',
   mint: 'nxPqZ4F7ux8Vph5NFu25rEP6Kx9Gr1U6Fmj36Rjpump',
   url: '/data/dacity-gta6.json',
+  context: 'A GTA VI trailer shows a fictional “Dacity Coin”. The real Solana token with that name goes from $96k to $540k market cap in 35 seconds. These are those swaps.',
 };
 
 const refCache = new Map<string, Promise<LaunchHandle & { provenance: Provenance }>>();

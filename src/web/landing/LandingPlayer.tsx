@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { referenceHandle, type LaunchHandle, type Provenance } from '../data/sources.ts';
+import { REFERENCE, referenceHandle, type LaunchHandle, type Provenance } from '../data/sources.ts';
 import { Chart } from '../player/Chart.tsx';
 import { Transport, usePlayer, usePlayerKeys, shareUrl } from '../player/usePlayer.tsx';
 import { filterIds, SideTag, TxLink } from '../player/CandlePanel.tsx';
@@ -91,9 +91,7 @@ function Player({ h }: { h: LaunchHandle & { provenance: Provenance } }) {
             <button type="button" className="btn btn-s" onClick={rewind}>−15 s</button>
           </div>
         </div>
-        <p className="lp-context">
-          On 15 October 2026 a GTA VI trailer showed a fictional “Dacity Coin”. A Solana token with that name already existed — at 13:02 UTC its pool woke up. These are its first {Math.round((w1.getTime() - w0.getTime()) / 1000)} seconds of real swaps, one by one.
-        </p>
+        <p className="lp-context">{REFERENCE.context}</p>
         <div className="lp-body">
           <div className="lp-chart">
             <Chart ctrl={ctrl} t0={p.t0} gaps={[]} isLive={false} usdPerSol={p.usdPerSol} supply={h.bundle.launch.supply} dimIds={dimIds} compact label="Dacity Coin price and swaps. Click a candle to see who bought it." />
@@ -123,7 +121,7 @@ function Player({ h }: { h: LaunchHandle & { provenance: Provenance } }) {
                   <div className="key">
                     <span className="key-label">Biggest buy</span>
                     <span className="key-value mono">{fmtShare(metrics.largestBuyShare.value)}</span>
-                    <span className="key-sub">of {fmtSol(metrics.buySol)} SOL bought</span>
+                    <span className="key-sub">of all the buying</span>
                   </div>
                 </div>
                 <ol className="lp-top" aria-label="Largest buys in the range">
@@ -131,8 +129,8 @@ function Player({ h }: { h: LaunchHandle & { provenance: Provenance } }) {
                     <li key={s.id}>
                       <button type="button" className="swaprow" onClick={() => ctrl.highlightSwap(s.id)}>
                         <SideTag side={s.side} />
-                        <span className="mono num">{fmtSol(s.sol)} SOL</span>
-                        <span className="mono muted">{p.usdPerSol ? usd(s.sol * p.usdPerSol) : ''}</span>
+                        <span className="mono num">{p.usdPerSol ? usd(s.sol * p.usdPerSol) : `${fmtSol(s.sol)} SOL`}</span>
+                        <span className="mono muted">{fmtClock(s.chainTime)}</span>
                         <span className="mono muted">{short(s.wallet)}</span>
                       </button>
                       <TxLink sig={s.signature} mode="live" />
@@ -151,32 +149,15 @@ function Player({ h }: { h: LaunchHandle & { provenance: Provenance } }) {
             </Link>
           </div>
         </div>
-        <p className="lp-prov small muted">
-          Source: every swap of PumpSwap pool <a href={SOL_EXPLORER_ADDR(prov.pool)} target="_blank" rel="noreferrer noopener" className="mono">{short(prov.pool, 5)}</a> for mint{' '}
-          <a href={SOL_EXPLORER_ADDR(prov.mint)} target="_blank" rel="noreferrer noopener" className="mono">{short(prov.mint, 5)}</a>, decoded from the transaction logs ({prov.signatures} signatures, {prov.failedTransactions} failed transactions excluded). This pool is priced in TTWO, a tokenized Take-Two share: amounts are shown as SOL-equivalent using TTWO/USD and SOL/USD at the same minute. Each swap links to Solscan.
-        </p>
+        <details className="lp-prov small muted">
+          <summary>Where this data comes from</summary>
+          <p>
+            Every trade of the PumpSwap pool <a href={SOL_EXPLORER_ADDR(prov.pool)} target="_blank" rel="noreferrer noopener" className="mono">{short(prov.pool, 5)}</a>, read directly from Solana ({prov.swaps} trades; {prov.failedTransactions} failed transactions left out). This pool is priced in TTWO, a tokenized Take-Two share, so dollar values use the TTWO and SOL prices of the same minute. Every trade links to Solscan.
+          </p>
+        </details>
       </div>
 
-      <ol className="steps" aria-label="Try it on this launch">
-        <li>
-          <span className="step-text">Go back in time while a launch is still trading.</span>
-          <button type="button" className="linkbtn step-act" onClick={rewind}>
-            Rewind 15 s
-          </button>
-        </li>
-        <li>
-          <span className="step-text">Click a candle to see the swaps and wallets behind it.</span>
-          <button type="button" className="linkbtn step-act" onClick={openBusiest}>
-            Open the busiest 5 seconds
-          </button>
-        </li>
-        <li>
-          <span className="step-text">Line two launches up on their first swap and compare who bought.</span>
-          <Link to="/app/demo/compare" className="step-act">
-            Open Compare
-          </Link>
-        </li>
-      </ol>
+
     </>
   );
 }

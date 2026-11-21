@@ -6,7 +6,7 @@ import type { DataMode, FundingEvidence, Swap } from '../../core/types.ts';
 import { SOL_EXPLORER_ADDR, SOL_EXPLORER_TX } from '../../core/types.ts';
 import { fmtClock, fmtDur, fmtPct, fmtPrice, fmtShare, fmtSol, fmtTplus, fmtUsd, short } from '../../core/format.ts';
 import { fetchFunding } from '../data/sources.ts';
-import { DEFINITIONS, summarize, usd } from '../../core/summary.ts';
+import { DEFINITIONS, money, summarize } from '../../core/summary.ts';
 
 interface Props {
   ctrl: PlayerController;
@@ -76,7 +76,7 @@ export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShar
       <div className="panel-body">
         <p className="panel-kicker">Latest swaps</p>
         <p className="hint">Click a candle on the chart (or drag across it) to see what moved the price in that moment.</p>
-        <SwapList swaps={tape.slice(-60).reverse()} t0={t0} mode={mode} ctrl={ctrl} highlight={highlight} />
+        <SwapList swaps={tape.slice(-60).reverse()} t0={t0} mode={mode} ctrl={ctrl} highlight={highlight} solUsd={solUsd} />
       </div>
     );
   }
@@ -103,7 +103,6 @@ export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShar
   };
 
   const sentences = summarize(m, solUsd ?? null);
-  const inUsd = (x: number) => (solUsd ? usd(x * solUsd) : '');
   const tile = (id: MetricFilter | null, label: string, value: string, sub: string, def: string, tone?: string) => (
     <button type="button" className={`key${filter === id && id ? ' on' : ''}`} aria-pressed={!!id && filter === id} onClick={() => id && pick(filter === id ? null : id)} title={def}>
       <span className="key-label">{label}</span>
@@ -116,13 +115,10 @@ export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShar
     <div className="panel-body">
       <div className="candle-head">
         <div>
-          <p className="panel-kicker">Selected range</p>
+          <p className="panel-kicker">Selected moment</p>
           <h3 className="win">
             {fmtClock(m.a / 1000)} → {fmtClock(m.b / 1000)} <span className="muted">UTC · {fmtDur(dur)}</span>
           </h3>
-          <p className="muted small mono">
-            {fmtTplus(m.a, t0)} → {fmtTplus(m.b, t0)} after the first swap shown
-          </p>
         </div>
         <div className="row gap-s">
           {!compact && (
@@ -156,13 +152,13 @@ export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShar
 
       <div className="keys">
         {tile(null, 'Price', fmtPct(m.changePct, 0), m.fdvEnd.usd != null ? `market cap ${fmtUsd(m.fdvEnd.usd)}` : 'no USD reference', DEFINITIONS.mcap, m.changePct != null && m.changePct >= 0 ? 'up' : 'down')}
-        {tile('buys', 'Bought', `${fmtSol(m.buySol)} SOL`, inUsd(m.buySol) ? `≈ ${inUsd(m.buySol)} · sold ${fmtSol(m.sellSol)}` : `sold ${fmtSol(m.sellSol)} SOL`, DEFINITIONS.bought)}
-        {tile('firstTime', 'Buyers', String(m.distinctBuyers.length), `wallets · ${m.count} swaps`, DEFINITIONS.buyers)}
-        {tile('largestBuy', 'Biggest buy', fmtShare(m.largestBuyShare.value), `of all buying (${fmtSol(m.largestBuyShare.numerator)} SOL)`, DEFINITIONS.largestBuy)}
+        {tile('buys', 'Bought', money(m.buySol, solUsd ?? null), `${fmtSol(m.buySol)} SOL · ${m.buys.length} buys`, DEFINITIONS.bought)}
+        {tile('firstTime', 'Buyers', String(m.distinctBuyers.length), `wallets · ${m.count} trades`, DEFINITIONS.buyers)}
+        {tile('largestBuy', 'Biggest buy', money(m.largestBuyShare.numerator, solUsd ?? null), `${fmtShare(m.largestBuyShare.value)} of all buying`, DEFINITIONS.largestBuy)}
       </div>
 
       <details className="more">
-        <summary>All numbers and how they are computed</summary>
+        <summary>Details and definitions</summary>
         <div className="price-row">
           <div>
             <span className="metric-label">Price per token (SOL)</span>
@@ -190,18 +186,17 @@ export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShar
           <Metric id="earlySellers" label="Early buyers selling" value={String(m.earlySellers.length)} sub={`of the first ${EARLY_BUYERS_N} buyers`} def={DEFINITIONS.early} filter={filter} onPick={pick} warn={trunc} />
           <Metric id="clusters" label="Shared funder" value={String(m.clusters.length)} sub={m.clusters.length ? 'hint' : 'none loaded'} def={DEFINITIONS.funding} filter={filter} onPick={pick} />
         </div>
-      </details>
 
       {m.earlySellers.length > 0 && !compact && (
         <section className="sub">
-          <h4>Early buyers selling in this window</h4>
+          <h4>First buyers who sold here</h4>
           <ul className="plain">
             {m.earlySellers.map((e) => (
               <li key={e.wallet} className="mono small">
-                #{e.earlyRank} <WalletLink w={e.wallet} mode={mode} /> bought {fmtSol(e.firstBuy.sol)} at {fmtTplus(e.firstBuy.tl, t0)} · sold {fmtSol(e.soldSol)} SOL in {e.sells.length} tx{' '}
+                Buyer #{e.earlyRank} <WalletLink w={e.wallet} mode={mode} /> bought {money(e.firstBuy.sol, solUsd ?? null)} at {fmtClock(e.firstBuy.chainTime)}, sold {money(e.soldSol, solUsd ?? null)} at{' '}
                 {e.sells.map((s) => (
                   <button key={s.id} type="button" className="linkbtn" onClick={() => ctrl.highlightSwap(s.id)}>
-                    {fmtTplus(s.tl, t0)}
+                    {fmtClock(s.chainTime)}
                   </button>
                 ))}
               </li>
@@ -212,8 +207,8 @@ export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShar
 
       {!compact && (
         <section className="sub">
-          <h4>Funding links</h4>
-          {m.clusters.length === 0 && <p className="muted small">No funding evidence for wallets in this window.</p>}
+          <h4>Wallets funded by the same address</h4>
+          {m.clusters.length === 0 && <p className="muted small">None found among these wallets.</p>}
           {m.clusters.map((c) => (
             <div key={c.funder} className="cluster small">
               <p>
@@ -230,23 +225,25 @@ export function CandlePanel({ ctrl, m, tape, t0, mode, filter, highlight, onShar
           ))}
           {mode === 'live' && (
             <button type="button" className="btn btn-ghost btn-s" disabled={funding.busy} onClick={checkFunding}>
-              {funding.busy ? 'Checking…' : 'Check first funding of top buyers'}
+              {funding.busy ? 'Checking…' : 'Check who funded the top buyers'}
             </button>
           )}
           {funding.note && <p className="muted small">{funding.note}</p>}
         </section>
       )}
 
+      </details>
+
       <section className="sub">
         <div className="row between">
           <h4>
-            Swaps in window {filter && <span className="muted">· filtered ({shown.length})</span>}
+            Trades in this moment {filter && <span className="muted">· highlighted ({shown.length})</span>}
           </h4>
           <label className="small row gap-s">
             <input type="checkbox" checked={raw} onChange={(e) => setRaw(e.target.checked)} /> raw events
           </label>
         </div>
-        {raw ? <RawList swaps={m.swaps} m={m} /> : <SwapList swaps={shown} t0={t0} mode={mode} ctrl={ctrl} highlight={highlight} m={m} />}
+        {raw ? <RawList swaps={m.swaps} m={m} /> : <SwapList swaps={shown} t0={t0} mode={mode} ctrl={ctrl} highlight={highlight} m={m} solUsd={solUsd} />}
       </section>
     </div>
   );
@@ -261,7 +258,8 @@ function WalletLink({ w, mode }: { w: string; mode: DataMode }) {
   );
 }
 
-export function SwapList({ swaps, t0, mode, ctrl, highlight, m }: { swaps: Swap[]; t0: number; mode: DataMode; ctrl: PlayerController; highlight: string | null; m?: WindowMetrics }) {
+export function SwapList({ swaps, t0, mode, ctrl, highlight, m, solUsd }: { swaps: Swap[]; t0: number; mode: DataMode; ctrl: PlayerController; highlight: string | null; m?: WindowMetrics; solUsd?: number | null }) {
+  void t0;
   const first = new Set(m?.firstTimeBuyerSwaps.map((s) => s.id));
   const top3 = new Set(m?.top3.map((w) => w.wallet));
   const largestId = m?.largest?.id;
@@ -269,17 +267,16 @@ export function SwapList({ swaps, t0, mode, ctrl, highlight, m }: { swaps: Swap[
     <ol className="swaps" aria-label="Swaps">
       {swaps.slice(0, 400).map((s) => (
         <li key={s.id} className={s.id === highlight ? 'hl' : ''}>
-          <button type="button" className="swaprow" onClick={() => ctrl.highlightSwap(s.id)} aria-label={`${s.side} ${fmtSol(s.sol)} SOL by ${s.wallet} at ${fmtTplus(s.tl, t0)}`}>
-            <span className="mono muted">{fmtTplus(s.tl, t0)}</span>
+          <button type="button" className="swaprow" onClick={() => ctrl.highlightSwap(s.id)} aria-label={`${s.side} ${money(s.sol, solUsd ?? null)} by ${s.wallet} at ${fmtClock(s.chainTime)} UTC`} title={`${fmtSol(s.sol)} SOL · slot ${s.slot}`}>
+            <span className="mono muted">{fmtClock(s.chainTime)}</span>
             <SideTag side={s.side} />
-            <span className="mono num">{fmtSol(s.sol)}</span>
+            <span className="mono num">{money(s.sol, solUsd ?? null)}</span>
             <span className="mono muted">{short(s.wallet)}</span>
             <span className="tags">
               {s.id === largestId && <span className="tag tag-a">largest</span>}
               {first.has(s.id) && <span className="tag">first buy</span>}
               {top3.has(s.wallet) && s.side === 'buy' && <span className="tag">top 3</span>}
               {s.legs > 1 && <span className="tag">{s.legs} legs</span>}
-              {s.source === 'backfill' && <span className="tag">backfill</span>}
             </span>
           </button>
           <TxLink sig={s.signature} mode={mode} />

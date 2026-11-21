@@ -113,8 +113,10 @@ export function drawChart(ctx: CanvasRenderingContext2D, series: SwapSeries, st:
   for (let t = firstTick; t <= L.v1; t += tick) {
     const px = x(t);
     const rel = Math.round((t - opts.t0) / 1000);
-    const lab = Math.abs(rel) >= 600 ? `T+${Math.round(rel / 60)}m` : Math.abs(rel) >= 120 ? `T+${Math.floor(rel / 60)}m${String(rel % 60).padStart(2, '0')}` : `T+${rel}s`;
-    ctx.fillText(rel < 0 ? `T${rel}s` : lab, px + 4, RULER_H / 2);
+    void rel;
+    // wall-clock (UTC) labels: seconds while zoomed in, minutes otherwise
+    const lab = new Date(t).toISOString().slice(11, tick < 60000 ? 19 : 16);
+    ctx.fillText(lab, px + 4, RULER_H / 2);
     ctx.fillRect(Math.round(px), RULER_H - 6, 1, 6);
   }
 
